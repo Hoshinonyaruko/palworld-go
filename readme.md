@@ -10,6 +10,12 @@
 
 _✨ 适用于palworld的进程守护+内存不足自动重启服务端 ✨_  
 
+## 特别鸣谢+推荐
+
+本项目的直接参考（linux版的palworld服务端守护脚本）
+
+https://gist.github.com/Bluefissure/b0fcb05c024ee60cad4e23eb55463062
+
 ## 使用方法
 启动后配置（会继续完善）
 
