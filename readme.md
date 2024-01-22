@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://www.github.com/hoshinonyaruko/palworld-go">
-    <img src="pic/1.png" width="200" height="200" alt="palworld-go">
+    <img src="pic/1.gif" width="200" height="200" alt="palworld-go">
   </a>
 </p>
 
