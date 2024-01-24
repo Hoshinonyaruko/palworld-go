@@ -20,6 +20,7 @@ func main() {
 
 	// 打印配置以确认
 	fmt.Printf("当前配置: %#v\n", config)
+	fmt.Printf("作者 早苗狐 答疑群:587997911\n")
 
 	// 设置监控和自动重启
 	supervisor := NewSupervisor(config)

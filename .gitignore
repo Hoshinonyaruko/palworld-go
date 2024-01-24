@@ -1,5 +1,7 @@
 # specific
 config.json
-*.exe
+palworld-go.exe
+palworld.exe
+pal.exe
 
 .verysync
