@@ -61,7 +61,11 @@ func (task *MemoryCheckTask) checkMemory() {
 		log.Printf("Memory usage is above %v%%. Running clean command.", threshold)
 		// 初始化RCON客户端
 		rconClient := NewRconClient(task.Config.Address, task.Config.AdminPassword, task.BackupTask)
-		HandleMemoryUsage(threshold, rconClient)
+		if rconClient == nil {
+			log.Println("RCON客户端初始化失败,无法处理内存使用情况,请按教程正确开启rcon和设置服务端admin密码")
+			return
+		}
+		HandleMemoryUsage(threshold, rconClient, task.Config)
 		defer rconClient.Close()
 	} else {
 		log.Printf("Memory usage is below %v%%. No action required.", threshold)
