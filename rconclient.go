@@ -17,7 +17,8 @@ type RconClient struct {
 func NewRconClient(address, password string, BackupTask *BackupTask) *RconClient {
 	conn, err := rcon.Dial(address, password)
 	if err != nil {
-		log.Fatalf("无法连接到RCON服务器: %v", err)
+		log.Printf("无法连接到RCON服务器: %v", err)
+		return nil
 	}
 	return &RconClient{
 		Conn:       conn,
@@ -47,10 +48,16 @@ func RestartServer(RconClient *RconClient) error {
 	return nil
 }
 
-func HandleMemoryUsage(threshold float64, RconClient *RconClient) {
+// 发广播 重启维护
+func HandleMemoryUsage(threshold float64, RconClient *RconClient, config Config) {
 	// 广播内存超阈值的警告
 	if _, err := RconClient.Conn.Execute(fmt.Sprintf("broadcast Memory_Is_Above_%v%%", threshold)); err != nil {
 		log.Printf("Error broadcasting memory threshold alert: %v", err)
+	}
+
+	//广播自定义内容
+	if _, err := RconClient.Conn.Execute("broadcast " + config.MaintenanceWarningMessage); err != nil {
+		log.Printf("Error broadcasting: %v", err)
 	}
 
 	// 保存游戏状态
@@ -64,4 +71,11 @@ func HandleMemoryUsage(threshold float64, RconClient *RconClient) {
 	}
 
 	RconClient.BackupTask.RunBackup()
+}
+
+func Broadcast(message string, RconClient *RconClient) {
+	// 广播
+	if _, err := RconClient.Conn.Execute("broadcast " + message); err != nil {
+		log.Printf("Error broadcasting : %v", err)
+	}
 }
