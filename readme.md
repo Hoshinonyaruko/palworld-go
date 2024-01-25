@@ -8,7 +8,7 @@
 
 # palworld-go
 
-_✨ 适用于palworld的进程守护+内存不足自动重启服务端 ✨_  
+_✨ 适用于palworld的进程守护+强力内存释放+内存不足自动重启服务端 ✨_  
 
 ## 特别鸣谢+推荐
 
@@ -17,76 +17,102 @@ _✨ 适用于palworld的进程守护+内存不足自动重启服务端 ✨_
 https://gist.github.com/Bluefissure/b0fcb05c024ee60cad4e23eb55463062
 
 ## 使用方法
+
 启动后配置（会继续完善）
+
+打开\steamcmd\steamapps\common\PalServer\DefaultPalWorldSettings.ini配置文件
+
+修改RCONEnabled=False，把False改为True启用Rcon，修改AdminPassword=""在""中设置你的管理员密码
+
+修改完成后保存配置文件，复制文档全部内容到
 
 \steamcmd\steamapps\common\PalServer\Pal\Saved\Config\WindowsServer\PalWorldSettings.ini
 
-将
+保存配置文件
 
-\steamcmd\steamapps\common\PalServer\DefaultPalWorldSettings.ini
-
-中内容复制放入，然后打开rcon，设置DefaultPalWorldSettings中的AdminPassword
+第一次启动palworld-go-windows-amd64.exe后会生成Config.JSON配置文件
 
 {
-    "gamePath": "C:\\Users\\Administrator\\Downloads\\steamcmd\\steamapps\\common\\PalServer",
 
-    "gameSavePath": "C:\\Users\\Administrator\\Downloads\\steamcmd\\steamapps\\common\\PalServer\\Pal\\Saved",
+	在""中填入你的服务端安装路径将\改为\\如下方举例
 
-    "backupPath": "C:\\Users\\Administrator\\Desktop\\save",
+    "gamePath": "C:\\steamcmd\\steamapps\\common\\PalServer",
+
+	在""中填入你的服务端存档路径将\改为\\如下方举例
+
+    "gameSavePath": "C:\\steamcmd\\steamapps\\common\\PalServer\\Pal\\Saved",
+
+	在""中填入你的备份存档保存路径将\改为\\如下方举例
+
+    "backupPath": "C:\\Users\\Administrator\\Desktop\\BackUp",
+
+	在""中填入127.0.0.1:25575固定值
 
     "address": "127.0.0.1:25575",
 
+	在""中填入25575固定值
+
     "rconPort": "25575",
+
+	在""中填入开始在DefaultPalWorldSettings.ini中设置的管理员密码
 
     "adminPassword": "",
 
+	进程名称 PalServer，默认不要修改
+
     "processName": "PalServer",
+
+	 进程存活检查时间，单位为秒，下方数值为30秒
 
     "checkInterval": 30,
 
+	 日志文件路径
+
     "serviceLogFile": "/service.log",
 
+	错误日志文件路径
     "serviceErrorFile": "/service.err",
 
-    "backupInterval": 1800,
+	存档备份时间，以秒为单位，下方数值为3600秒
+
+    "backupInterval": 3600,
+
+	内存占用检测间隔时间，单位为秒，下方数值为30秒
 
     "memoryCheckInterval": 30,
 
-    "memoryUsageThreshold": 30,
+	内存重启阈值，单位为百分比，下方数值为80%
 
-    "totalMemoryGB": 16
-}
+    "memoryUsageThreshold": 80,
 
-配置说明
+	你服务器最大内存，单位为G，下方数值为32G
 
-type Config struct {
-	GamePath             string  `json:"gamePath"`             // 游戏可执行文件路径PalServer.exe所处的位置
+    "totalMemoryGB": 32,
 
-	GameSavePath         string  `json:"gameSavePath"`         // 游戏存档路径 \PalServer\Pal\Saved\文件夹的完整路径
+	服务器广播,单位为秒，下方数值为1800秒
 
-	BackupPath           string  `json:"backupPath"`           // 备份路径
+    "memoryCleanupInterval": 1800,
 
-	Address              string  `json:"address"`              // 服务器 IP 地址
+	服务器广播内容，在""中填入，你要广播的内容
 
-	RCONPort             string  `json:"rconPort"`             // RCON 端口号
+    "regularMessages": [
 
-	AdminPassword        string  `json:"adminPassword"`        // RCON 管理员密码
+        "",
 
-	ProcessName          string  `json:"processName"`          // 进程名称 PalServer
+        ""
 
-	CheckInterval        int     `json:"checkInterval"`        // 进程存活检查时间（秒）
+    ],
 
-	ServiceLogFile       string  `json:"serviceLogFile"`       // 日志文件路径
+	内存自动清理间隔，单位为秒，下方数值为3600秒，第一次使用要看效果可设置10秒，然后再加大间隔。
 
-	ServiceErrorFile     string  `json:"serviceErrorFile"`     // 错误日志文件路径
+    "messageBroadcastInterval": 3600,
 
-	BackupInterval       int     `json:"backupInterval"`       // 备份间隔（秒）
+	服务器重启广播在""中填入，你要广播的内容
 
-	MemoryCheckInterval  int     `json:"memoryCheckInterval"`  // 内存占用检测时间（秒）
+    "maintenanceWarningMessage": "The server is about to be maintained. Your archive has been saved. Please log in again 
+    
+    in 1 minute."
 
-	MemoryUsageThreshold float64 `json:"memoryUsageThreshold"` // 重启阈值（百分比）
-
-	TotalMemoryGB        int     `json:"totalMemoryGB"`        // 当前服务器总内存
 }
 
 
@@ -96,3 +122,4 @@ windows通过了测试，linux有待测试
 ## 场景支持
 
 内存不足的时候，通过rcon通知服务器成员，然后重启服务器
+通过调用微软的rammap释放无用内存，并将有用内存转移至虚拟内存，实现一次释放50%+内存
