@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"syscall"
 )
 
@@ -48,4 +49,18 @@ func (r *UnixRestarter) Restart(executableName string) error {
 func setConsoleTitleWindows(title string) error {
 	fmt.Printf("\033]0;%s\007", title)
 	return nil
+}
+
+func KillProcess() error {
+	var cmd *exec.Cmd
+
+	if runtime.GOOS == "windows" {
+		// Windows: 直接指定要结束的进程名称
+		cmd = exec.Command("taskkill", "/IM", "PalServer-Win64-Test-Cmd.exe", "/F")
+	} else {
+		// 非Windows: 使用pkill命令和进程名称
+		cmd = exec.Command("pkill", "-f", "PalServer-Win64-Test-Cmd.exe")
+	}
+
+	return cmd.Run()
 }

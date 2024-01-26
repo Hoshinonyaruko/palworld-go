@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorcon/rcon"
@@ -257,7 +256,7 @@ func HandleRestart(c *gin.Context, cfg config.Config) {
 
 func restartService(cfg config.Config) {
 	// 首先，尝试终止同名进程
-	if err := killProcess(); err != nil {
+	if err := sys.KillProcess(); err != nil {
 		log.Printf("Failed to kill existing process: %v", err)
 		// 可以选择在此处返回，也可以继续尝试启动新进程
 	}
@@ -294,21 +293,6 @@ func restartService(cfg config.Config) {
 	} else {
 		log.Printf("Game server restarted successfully")
 	}
-}
-
-func killProcess() error {
-	var cmd *exec.Cmd
-
-	if runtime.GOOS == "windows" {
-		// Windows: 直接指定要结束的进程名称
-		cmd = exec.Command("taskkill", "/IM", "PalServer-Win64-Test-Cmd.exe", "/F")
-	} else {
-		// 非Windows: 使用pkill命令和进程名称
-		cmd = exec.Command("pkill", "-f", "PalServer-Win64-Test-Cmd.exe")
-	}
-
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	return cmd.Run()
 }
 
 // writeConfigToFile 将配置写回文件
