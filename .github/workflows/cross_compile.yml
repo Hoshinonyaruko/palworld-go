@@ -52,13 +52,13 @@ jobs:
 
     - name: Install Quasar CLI and dependencies
       run: |
-        cd front
+        cd front/palworld-front
         npm install -g @quasar/cli
         npm install
 
     - name: Build Quasar Project
       run: |
-        cd front
+        cd front/palworld-front
         quasar build
 
     - name: Create output directory
