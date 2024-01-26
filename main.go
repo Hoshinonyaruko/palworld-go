@@ -69,7 +69,7 @@ func main() {
 	}
 
 	if runtime.GOOS == "windows" {
-		// 创建一个定时器，每10秒触发一次，保存游戏设置
+		// 创建一个定时器，每10秒触发一次，保存游戏设置，允许玩家修改json配置并同步到ini
 		saveSettingsTicker := time.NewTicker(10 * time.Second)
 		go func() {
 			defer saveSettingsTicker.Stop()
@@ -93,7 +93,8 @@ func main() {
 	// 等待信号
 	<-sigChan
 	if runtime.GOOS == "windows" {
-		// 接收到退出信号，写回配置
+		// 接收到退出信号，写回配置，守护退出会刷新游戏ini
+		config := readConfigv2()
 		err := writeGameWorldSettings(&config, config.WorldSettings)
 		if err != nil {
 			// 处理写回错误
