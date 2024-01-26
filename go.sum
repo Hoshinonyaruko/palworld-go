@@ -1,2 +1,4 @@
 github.com/gorcon/rcon v1.3.4 h1:TExNhWI2mJlqpCg49vajUgznvEZbEzQWKujY1Sy+/AY=
 github.com/gorcon/rcon v1.3.4/go.mod h1:46+oSXgPwlRAkcAPStkNnIL1dlcxJweKVNWshy3hDJI=
+gopkg.in/ini.v1 v1.67.0 h1:Dgnx+6+nfE+IfzjUEISNeydPJh9AXNNsWbGP9KzCsOA=
+gopkg.in/ini.v1 v1.67.0/go.mod h1:pNLf8WUiyNEtQjuu5G5vTm06TEv9tsIgeAvK8hOrP4k=

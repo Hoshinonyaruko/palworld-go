@@ -61,15 +61,35 @@ func (s *Supervisor) isServiceRunning() bool {
 
 func (s *Supervisor) restartService() {
 	// 构建游戏服务器的启动命令
-	var command string
+	var exePath string
+	var args []string
+
+	// 构造游戏启动参数
+	//gameArgs := constructGameLaunchArguments(s.Config.WorldSettings)
+
 	if runtime.GOOS == "windows" {
-		command = filepath.Join(s.Config.GamePath, s.Config.ProcessName+".exe")
+		exePath = filepath.Join(s.Config.GamePath, s.Config.ProcessName+".exe")
+		args = []string{
+			"-useperfthreads",
+			"-NoAsyncLoadingThread",
+			"-UseMultithreadForDS",
+			"RconEnabled=True",
+			fmt.Sprintf("AdminPassword=%s", s.Config.AdminPassword),
+			fmt.Sprintf("port=%d", s.Config.Port),
+			fmt.Sprintf("players=%d", s.Config.Players),
+		}
+		//args = append(args, gameArgs...) // 添加GameWorldSettings参数
 	} else {
-		command = filepath.Join(s.Config.GamePath, s.Config.ProcessName)
+		exePath = filepath.Join(s.Config.GamePath, s.Config.ProcessName)
+		args = []string{ // Linux下可能需要不同的参数
+			fmt.Sprintf("--port=%d", s.Config.Port),
+			fmt.Sprintf("--players=%d", s.Config.Players),
+		}
 	}
 
 	// 执行启动命令
-	cmd := exec.Command(command)
+	log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))
+	cmd := exec.Command(exePath, args...)
 	cmd.Dir = s.Config.GamePath // 设置工作目录为游戏路径
 
 	// 启动进程
@@ -79,3 +99,33 @@ func (s *Supervisor) restartService() {
 		log.Printf("Game server restarted successfully")
 	}
 }
+
+// func constructGameLaunchArguments(settings *GameWorldSettings) []string {
+// 	var args []string
+
+// 	sValue := reflect.ValueOf(settings).Elem()
+// 	sType := sValue.Type()
+
+// 	for i := 0; i < sType.NumField(); i++ {
+// 		field := sType.Field(i)
+// 		fieldValue := sValue.Field(i)
+
+// 		jsonTag := firstToUpper(strings.Split(field.Tag.Get("json"), ",")[0]) // 获取json标签的第一部分，并将首字母转换为大写
+
+// 		var arg string
+// 		switch fieldValue.Kind() {
+// 		case reflect.String:
+// 			arg = fmt.Sprintf("%s=%s", jsonTag, fieldValue.String())
+// 		case reflect.Float64:
+// 			arg = fmt.Sprintf("%s=%s", jsonTag, strconv.FormatFloat(fieldValue.Float(), 'f', 6, 64))
+// 		case reflect.Int:
+// 			arg = fmt.Sprintf("%s=%d", jsonTag, fieldValue.Int())
+// 		case reflect.Bool:
+// 			arg = fmt.Sprintf("%s=%t", jsonTag, fieldValue.Bool())
+// 		}
+
+// 		args = append(args, arg)
+// 	}
+
+// 	return args
+// }
