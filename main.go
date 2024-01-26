@@ -137,3 +137,33 @@ func runRAMMap(rammapExecutable string) {
 		log.Printf("运行RAMMap时发生错误: %v", err)
 	}
 }
+
+// extractRAMMapExecutable 从嵌入的文件系统中提取RAMMap并写入临时文件
+func extractRAMMapExecutable() (string, error) {
+	rammapData, err := fs.ReadFile(rammapFS, "RAMMap64.exe")
+	if err != nil {
+		return "", err
+	}
+
+	tmpFile, err := os.CreateTemp("", "RAMMap64-*.exe")
+	if err != nil {
+		return "", err
+	}
+	defer tmpFile.Close()
+
+	if _, err := tmpFile.Write(rammapData); err != nil {
+		return "", err
+	}
+
+	return tmpFile.Name(), nil
+}
+
+func runRAMMap(rammapExecutable string) {
+	log.Printf("正在使用rammap清理内存....")
+	// 调用RAMMap的命令
+	cmd := exec.Command(rammapExecutable, "-Ew")
+	err := cmd.Run()
+	if err != nil {
+		log.Printf("运行RAMMap时发生错误: %v", err)
+	}
+}

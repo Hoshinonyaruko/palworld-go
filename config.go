@@ -488,3 +488,43 @@ func writeGameWorldSettings(config *Config, settings *GameWorldSettings) error {
 	// 保存修改后的INI文件
 	return cfg.SaveTo(iniPath)
 }
+
+// AutoConfigurePaths 自动配置路径
+func AutoConfigurePaths(config *Config) error {
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	exePath := filepath.Join(currentDir, "PalServer.exe")
+	if _, err := os.Stat(exePath); os.IsNotExist(err) {
+		log.Println("检测到与PalServer.exe不位于同一路径下,建议将程序放置在PalServer.exe同目录下")
+		return nil
+	}
+
+	correctGamePath := currentDir
+	correctGameSavePath := filepath.Join(currentDir, "Pal\\Saved")
+
+	// 检查路径是否需要更新
+	if config.GamePath != correctGamePath || config.GameSavePath != correctGameSavePath {
+		config.GamePath = correctGamePath
+		config.GameSavePath = correctGameSavePath
+
+		// 将更新后的配置写回文件
+		updatedConfig, err := json.MarshalIndent(config, "", "  ")
+		if err != nil {
+			return err
+		}
+
+		err = os.WriteFile("config.json", updatedConfig, 0644)
+		if err != nil {
+			return err
+		}
+
+		log.Println("你的目录配置已被自动修正,请重新运行本程序。")
+	} else {
+		log.Println("你的目录配置正确。")
+	}
+
+	return nil
+}
