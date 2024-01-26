@@ -43,7 +43,18 @@ func (task *BackupTask) RunBackup() {
 
 	// 执行文件复制操作
 	if err := copyDir(sourcePath, destinationPath); err != nil {
-		log.Printf("Failed to copy files for backup: %v", err)
+		log.Printf("Failed to copy files for backup SaveGames: %v", err)
+	} else {
+		log.Printf("Backup completed successfully: %s", destinationPath)
+	}
+
+	// 确定源文件的路径和目标路径
+	sourcePath = filepath.Join(task.Config.GameSavePath, "Config")
+	destinationPath = filepath.Join(backupDir, "Config")
+
+	// 执行文件复制操作
+	if err := copyDir(sourcePath, destinationPath); err != nil {
+		log.Printf("Failed to copy files for backup Config: %v", err)
 	} else {
 		log.Printf("Backup completed successfully: %s", destinationPath)
 	}
