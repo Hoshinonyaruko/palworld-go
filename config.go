@@ -1,32 +1,44 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
+	"strconv"
+	"strings"
+	"unicode"
+
+	"github.com/hoshinonyaruko/palworld-go/status"
+	"gopkg.in/ini.v1"
 )
 
 type Config struct {
-	GamePath                  string   `json:"gamePath"`                  // 游戏可执行文件路径PalServer.exe所处的位置
-	GameSavePath              string   `json:"gameSavePath"`              // 游戏存档路径 \PalServer\Pal\Saved\文件夹的完整路径
-	BackupPath                string   `json:"backupPath"`                // 备份路径
-	Address                   string   `json:"address"`                   // 服务器 IP 地址
-	RCONPort                  string   `json:"rconPort"`                  // RCON 端口号
-	AdminPassword             string   `json:"adminPassword"`             // RCON 管理员密码
-	ProcessName               string   `json:"processName"`               // 进程名称 PalServer
-	CheckInterval             int      `json:"checkInterval"`             // 进程存活检查时间（秒）
-	ServiceLogFile            string   `json:"serviceLogFile"`            // 日志文件路径
-	ServiceErrorFile          string   `json:"serviceErrorFile"`          // 错误日志文件路径
-	BackupInterval            int      `json:"backupInterval"`            // 备份间隔（秒）
-	MemoryCheckInterval       int      `json:"memoryCheckInterval"`       // 内存占用检测时间（秒）
-	MemoryUsageThreshold      float64  `json:"memoryUsageThreshold"`      // 重启阈值（百分比）
-	TotalMemoryGB             int      `json:"totalMemoryGB"`             // 当前服务器总内存
-	MemoryCleanupInterval     int      `json:"memoryCleanupInterval"`     // 内存清理时间间隔（秒）
-	RegularMessages           []string `json:"regularMessages"`           // 定期推送的消息数组
-	MessageBroadcastInterval  int      `json:"messageBroadcastInterval"`  // 消息广播周期（秒）
-	MaintenanceWarningMessage string   `json:"maintenanceWarningMessage"` // 维护警告消息
+	GamePath                  string             `json:"gamePath"`                  // 游戏可执行文件路径PalServer.exe所处的位置
+	GameSavePath              string             `json:"gameSavePath"`              // 游戏存档路径 \PalServer\Pal\Saved\文件夹的完整路径
+	BackupPath                string             `json:"backupPath"`                // 备份路径
+	Address                   string             `json:"address"`                   // 服务器 IP 地址
+	RCONPort                  string             `json:"rconPort"`                  // RCON 端口号
+	AdminPassword             string             `json:"adminPassword"`             // RCON 管理员密码
+	ProcessName               string             `json:"processName"`               // 进程名称 PalServer
+	CheckInterval             int                `json:"checkInterval"`             // 进程存活检查时间（秒）
+	ServiceLogFile            string             `json:"serviceLogFile"`            // 日志文件路径
+	ServiceErrorFile          string             `json:"serviceErrorFile"`          // 错误日志文件路径
+	BackupInterval            int                `json:"backupInterval"`            // 备份间隔（秒）
+	MemoryCheckInterval       int                `json:"memoryCheckInterval"`       // 内存占用检测时间（秒）
+	MemoryUsageThreshold      float64            `json:"memoryUsageThreshold"`      // 重启阈值（百分比）
+	TotalMemoryGB             int                `json:"totalMemoryGB"`             // 当前服务器总内存
+	MemoryCleanupInterval     int                `json:"memoryCleanupInterval"`     // 内存清理时间间隔（秒）
+	RegularMessages           []string           `json:"regularMessages"`           // 定期推送的消息数组
+	MessageBroadcastInterval  int                `json:"messageBroadcastInterval"`  // 消息广播周期（秒）
+	MaintenanceWarningMessage string             `json:"maintenanceWarningMessage"` // 维护警告消息
+	Port                      int                `json:"port"`                      // 端口
+	Players                   int                `json:"players"`                   // 端口
+	WorldSettings             *GameWorldSettings `json:"worldSettings"`             // 帕鲁设定
 }
 
 // 默认配置
@@ -49,64 +61,161 @@ var defaultConfig = Config{
 	RegularMessages:           []string{"", ""},                                            // 默认的定期推送消息数组，初始可为空
 	MessageBroadcastInterval:  3600,                                                        // 默认消息广播周期，假设为1小时（3600秒）
 	MaintenanceWarningMessage: "server is going to rebot,please relogin at 1minute later.", // 默认的维护警告消息
+	Port:                      8211,
+	Players:                   32,
+}
+
+type GameWorldSettings struct {
+	Difficulty                          string  `json:"difficulty"`
+	DayTimeSpeedRate                    float64 `json:"dayTimeSpeedRate"`
+	NightTimeSpeedRate                  float64 `json:"nightTimeSpeedRate"`
+	ExpRate                             float64 `json:"expRate"`
+	PalCaptureRate                      float64 `json:"palCaptureRate"`
+	PalSpawnNumRate                     float64 `json:"palSpawnNumRate"`
+	PalDamageRateAttack                 float64 `json:"palDamageRateAttack"`
+	PalDamageRateDefense                float64 `json:"palDamageRateDefense"`
+	PlayerDamageRateAttack              float64 `json:"playerDamageRateAttack"`
+	PlayerDamageRateDefense             float64 `json:"playerDamageRateDefense"`
+	PlayerStomachDecreaceRate           float64 `json:"playerStomachDecreaceRate"`
+	PlayerStaminaDecreaceRate           float64 `json:"playerStaminaDecreaceRate"`
+	PlayerAutoHPRegeneRate              float64 `json:"playerAutoHPRegeneRate"`
+	PlayerAutoHpRegeneRateInSleep       float64 `json:"playerAutoHpRegeneRateInSleep"`
+	PalStomachDecreaceRate              float64 `json:"palStomachDecreaceRate"`
+	PalStaminaDecreaceRate              float64 `json:"palStaminaDecreaceRate"`
+	PalAutoHPRegeneRate                 float64 `json:"palAutoHPRegeneRate"`
+	PalAutoHpRegeneRateInSleep          float64 `json:"palAutoHpRegeneRateInSleep"`
+	BuildObjectDamageRate               float64 `json:"buildObjectDamageRate"`
+	BuildObjectDeteriorationDamageRate  float64 `json:"buildObjectDeteriorationDamageRate"`
+	CollectionDropRate                  float64 `json:"collectionDropRate"`
+	CollectionObjectHpRate              float64 `json:"collectionObjectHpRate"`
+	CollectionObjectRespawnSpeedRate    float64 `json:"collectionObjectRespawnSpeedRate"`
+	EnemyDropItemRate                   float64 `json:"enemyDropItemRate"`
+	DeathPenalty                        string  `json:"deathPenalty"`
+	EnablePlayerToPlayerDamage          bool    `json:"enablePlayerToPlayerDamage"`
+	EnableFriendlyFire                  bool    `json:"enableFriendlyFire"`
+	EnableInvaderEnemy                  bool    `json:"enableInvaderEnemy"`
+	ActiveUNKO                          bool    `json:"activeUNKO"`
+	EnableAimAssistPad                  bool    `json:"enableAimAssistPad"`
+	EnableAimAssistKeyboard             bool    `json:"enableAimAssistKeyboard"`
+	DropItemMaxNum                      int     `json:"dropItemMaxNum"`
+	DropItemMaxNum_UNKO                 int     `json:"dropItemMaxNum_UNKO"`
+	BaseCampMaxNum                      int     `json:"baseCampMaxNum"`
+	BaseCampWorkerMaxNum                int     `json:"baseCampWorkerMaxNum"`
+	DropItemAliveMaxHours               float64 `json:"dropItemAliveMaxHours"`
+	AutoResetGuildNoOnlinePlayers       bool    `json:"autoResetGuildNoOnlinePlayers"`
+	AutoResetGuildTimeNoOnlinePlayers   float64 `json:"autoResetGuildTimeNoOnlinePlayers"`
+	GuildPlayerMaxNum                   int     `json:"guildPlayerMaxNum"`
+	PalEggDefaultHatchingTime           float64 `json:"palEggDefaultHatchingTime"`
+	WorkSpeedRate                       float64 `json:"workSpeedRate"`
+	IsMultiplay                         bool    `json:"isMultiplay"`
+	IsPvP                               bool    `json:"isPvP"`
+	CanPickupOtherGuildDeathPenaltyDrop bool    `json:"canPickupOtherGuildDeathPenaltyDrop"`
+	EnableNonLoginPenalty               bool    `json:"enableNonLoginPenalty"`
+	EnableFastTravel                    bool    `json:"enableFastTravel"`
+	IsStartLocationSelectByMap          bool    `json:"isStartLocationSelectByMap"`
+	ExistPlayerAfterLogout              bool    `json:"existPlayerAfterLogout"`
+	EnableDefenseOtherGuildPlayer       bool    `json:"enableDefenseOtherGuildPlayer"`
+	CoopPlayerMaxNum                    int     `json:"coopPlayerMaxNum"`
+	ServerPlayerMaxNum                  int     `json:"serverPlayerMaxNum"`
+	ServerName                          string  `json:"serverName"`
+	ServerDescription                   string  `json:"serverDescription"`
+	AdminPassword                       string  `json:"adminPassword"`
+	ServerPassword                      string  `json:"serverPassword"`
+	PublicPort                          int     `json:"publicPort"`
+	PublicIP                            string  `json:"publicIP"`
+	RCONEnabled                         bool    `json:"rconEnabled"`
+	RCONPort                            int     `json:"rconPort"`
+	Region                              string  `json:"region"`
+	UseAuth                             bool    `json:"useAuth"`
+	BanListURL                          string  `json:"banListURL"`
 }
 
 // 配置文件路径
 const configFile = "config.json"
 
-// readConfig 尝试读取配置文件，如果失败则创建默认配置
+// readConfig 尝试读取配置文件，如果失败则创建并自动配置默认配置
 func readConfig() Config {
 	var config Config
 
-	// 读取配置文件
 	data, err := os.ReadFile(configFile)
 	if err != nil {
 		fmt.Println("无法读取配置文件, 正在创建默认配置...")
-		createDefaultConfig()
-		return defaultConfig
+		config = createDefaultConfig()
+	} else {
+		err = json.Unmarshal(data, &config)
+		if err != nil {
+			fmt.Println("配置解析失败, 正在使用默认配置...")
+			config = defaultConfig
+		}
 	}
 
-	// 反序列化JSON到结构体
-	err = json.Unmarshal(data, &config)
-	if err != nil {
-		fmt.Println("配置解析失败, 正在使用默认配置...")
-		return defaultConfig
-	}
+	// 自动配置路径
 	err = AutoConfigurePaths(&config)
 	if err != nil {
-		log.Fatalf("配置错误: %v", err)
+		log.Fatalf("路径配置错误: %v", err)
 	}
-	var write bool
-	// 确保所有必要的配置项都有默认值
-	if config.Address == "" {
-		config.Address = defaultConfig.Address
-		write = true
-	}
-	if config.AdminPassword == "" {
-		config.AdminPassword = defaultConfig.AdminPassword
-		write = true
-	}
-	if config.MemoryCleanupInterval == 0 {
-		config.MemoryCleanupInterval = 0
-	}
-	if config.RegularMessages == nil {
-		config.RegularMessages = []string{"", ""}
-		write = true
-	}
-	if config.MessageBroadcastInterval == 0 {
-		config.MessageBroadcastInterval = 3600
-		write = true
-	}
-	if config.MaintenanceWarningMessage == "" {
-		config.MaintenanceWarningMessage = "服务器即将进行维护,你的存档已保存,请放心,请坐稳扶好,1分钟后重新登录。"
-		write = true
-	}
-	//写回本地
-	if write {
+
+	// 检查并设置默认值
+	if checkAndSetDefaults(&config) {
+		// 如果配置被修改，写回文件
 		writeConfigToFile(config)
 	}
 
 	return config
+}
+
+// readConfigv2 尝试读取配置文件，如果失败则创建并自动配置默认配置
+func readConfigv2() Config {
+	var config Config
+
+	data, err := os.ReadFile(configFile)
+	if err != nil {
+		fmt.Println("无法读取配置文件, 正在创建默认配置...")
+		config = createDefaultConfig()
+	} else {
+		err = json.Unmarshal(data, &config)
+		if err != nil {
+			fmt.Println("配置解析失败, 正在使用默认配置...")
+			config = defaultConfig
+		}
+	}
+
+	return config
+}
+
+// checkAndSetDefaults 检查并设置默认值，返回是否做了修改
+func checkAndSetDefaults(config *Config) bool {
+	// 通过反射获取Config的类型和值
+	val := reflect.ValueOf(config).Elem()
+	typ := val.Type()
+
+	// 记录是否进行了修改
+	var modified bool
+
+	// 遍历所有字段
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		defaultField := reflect.ValueOf(defaultConfig).Field(i)
+		fieldName := typ.Field(i).Name
+
+		// 特殊处理MemoryCleanupInterval字段
+		if fieldName == "MemoryCleanupInterval" {
+			continue
+		}
+
+		// 如果字段是零值，设置为默认值
+		if isZeroOfUnderlyingType(field.Interface()) {
+			field.Set(defaultField)
+			modified = true
+		}
+	}
+
+	return modified
+}
+
+// isZeroOfUnderlyingType 检查一个值是否为其类型的零值
+func isZeroOfUnderlyingType(x interface{}) bool {
+	return reflect.DeepEqual(x, reflect.Zero(reflect.TypeOf(x)).Interface())
 }
 
 // writeConfigToFile 将配置写回文件
@@ -122,14 +231,16 @@ func writeConfigToFile(config Config) {
 	}
 }
 
-// createDefaultConfig 创建一个带有默认值的配置文件
-func createDefaultConfig() {
+// createDefaultConfig 创建一个带有默认值的配置文件，并返回这个配置
+func createDefaultConfig() Config {
+	// 序列化默认配置
 	data, err := json.MarshalIndent(defaultConfig, "", "    ")
 	if err != nil {
 		fmt.Println("无法创建默认配置文件:", err)
 		os.Exit(1)
 	}
 
+	// 将默认配置写入文件
 	err = os.WriteFile(configFile, data, 0666)
 	if err != nil {
 		fmt.Println("无法写入默认配置文件:", err)
@@ -137,6 +248,9 @@ func createDefaultConfig() {
 	}
 
 	fmt.Println("默认配置文件已创建:", configFile)
+
+	// 返回默认配置
+	return defaultConfig
 }
 
 // AutoConfigurePaths 自动配置路径
@@ -146,14 +260,20 @@ func AutoConfigurePaths(config *Config) error {
 		return err
 	}
 
-	exePath := filepath.Join(currentDir, "PalServer.exe")
+	// 根据操作系统设置可执行文件的名称
+	exeName := "PalServer"
+	if runtime.GOOS == "windows" {
+		exeName += ".exe"
+	}
+
+	exePath := filepath.Join(currentDir, exeName)
 	if _, err := os.Stat(exePath); os.IsNotExist(err) {
-		log.Println("检测到与PalServer.exe不位于同一路径下,建议将程序放置在PalServer.exe同目录下")
+		log.Printf("检测到 %s 不位于同一路径下, 建议将程序放置在 %s 同目录下\n", exeName, exeName)
 		return nil
 	}
 
 	correctGamePath := currentDir
-	correctGameSavePath := filepath.Join(currentDir, "Pal\\Saved")
+	correctGameSavePath := filepath.Join(currentDir, "Pal", "Saved")
 
 	// 检查路径是否需要更新
 	if config.GamePath != correctGamePath || config.GameSavePath != correctGameSavePath {
@@ -174,7 +294,197 @@ func AutoConfigurePaths(config *Config) error {
 		log.Println("你的目录配置已被自动修正,请重新运行本程序。")
 	} else {
 		log.Println("你的目录配置正确。")
+		//仅在windows系统灰度该特性
+		if runtime.GOOS == "windows" {
+			//这里刷新
+			gameworldsettings, err := readGameWorldSettings(config)
+			if err != nil {
+				log.Printf("解析游戏parworldsetting出错,错误%v", err)
+				status.SetsuccessReadGameWorldSettings(false)
+			} else {
+				config.WorldSettings = gameworldsettings
+				log.Println("从游戏parworldsetting.ini解析配置成功.")
+				log.Printf("从游戏parworldsetting.ini解析配置成功.%v", config.WorldSettings)
+				status.SetsuccessReadGameWorldSettings(true)
+				// 将更新后的配置写回文件
+				updatedConfig, err := json.MarshalIndent(config, "", "  ")
+				if err != nil {
+					return err
+				}
+
+				err = os.WriteFile("config.json", updatedConfig, 0644)
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	return nil
+}
+
+func readGameWorldSettings(config *Config) (*GameWorldSettings, error) {
+	iniPath := filepath.Join(config.GameSavePath, "Config", "WindowsServer", "PalWorldSettings.ini")
+
+	file, err := os.Open(iniPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	var settingsString string
+	insideSection := false
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Check if we are inside the relevant section
+		if strings.Contains(line, "[/Script/Pal.PalGameWorldSettings]") {
+			insideSection = true
+			continue
+		}
+
+		if insideSection && strings.HasPrefix(line, "OptionSettings=(") {
+			settingsString = line
+			break
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	if settingsString == "" {
+		fmt.Printf("未找到配置设置,使用游戏默认配置")
+		settingsString = "OptionSettings=(Difficulty=None,DayTimeSpeedRate=1.000000,NightTimeSpeedRate=1.000000,ExpRate=1.000000,PalCaptureRate=1.000000,PalSpawnNumRate=1.000000,PalDamageRateAttack=1.000000,PalDamageRateDefense=1.000000,PlayerDamageRateAttack=1.000000,PlayerDamageRateDefense=1.000000,PlayerStomachDecreaceRate=1.000000,PlayerStaminaDecreaceRate=1.000000,PlayerAutoHPRegeneRate=1.000000,PlayerAutoHpRegeneRateInSleep=1.000000,PalStomachDecreaceRate=1.000000,PalStaminaDecreaceRate=1.000000,PalAutoHPRegeneRate=1.000000,PalAutoHpRegeneRateInSleep=1.000000,BuildObjectDamageRate=1.000000,BuildObjectDeteriorationDamageRate=1.000000,CollectionDropRate=1.000000,CollectionObjectHpRate=1.000000,CollectionObjectRespawnSpeedRate=1.000000,EnemyDropItemRate=1.000000,DeathPenalty=All,bEnablePlayerToPlayerDamage=False,bEnableFriendlyFire=False,bEnableInvaderEnemy=True,bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=128,BaseCampWorkerMaxNum=15,DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,PalEggDefaultHatchingTime=72.000000,WorkSpeedRate=1.000000,bIsMultiplay=False,bIsPvP=False,bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=True,bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=False,bEnableDefenseOtherGuildPlayer=False,CoopPlayerMaxNum=4,ServerPlayerMaxNum=32,ServerName=\"Default Palworld Server\",ServerDescription=\"\",AdminPassword=\"\",ServerPassword=\"\",PublicPort=8211,PublicIP=\"\",RCONEnabled=False,RCONPort=25575,Region=\"\",bUseAuth=True,BanListURL=\"https://api.palworldgame.com/api/banlist.txt\")"
+	}
+
+	return parseSettings(settingsString), err
+}
+func firstToUpper(s string) string {
+	if s == "" {
+		return s
+	}
+	r := []rune(s)
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
+}
+func parseSettings(settingsString string) *GameWorldSettings {
+	// Remove the "OptionSettings=(" prefix and the closing ")"
+	trimmed := strings.TrimPrefix(settingsString, "OptionSettings=(")
+	trimmed = strings.TrimSuffix(trimmed, ")")
+
+	// Split the settings into key-value pairs
+	keyValuePairs := strings.Split(trimmed, ",")
+
+	settings := &GameWorldSettings{}
+	sValue := reflect.ValueOf(settings).Elem()
+	sType := sValue.Type()
+
+	for _, pair := range keyValuePairs {
+		keyValue := strings.SplitN(pair, "=", 2)
+		if len(keyValue) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(keyValue[0])
+		value := strings.TrimSpace(keyValue[1])
+		log.Printf("加载帕鲁ini,key:%v,value:%v", key, value)
+
+		for i := 0; i < sType.NumField(); i++ {
+			field := sType.Field(i)
+			// 将json标签首字母转换为大写
+			jsonTag := firstToUpper(strings.Split(field.Tag.Get("json"), ",")[0]) // 获取json标签的第一部分，忽略后面的选项（如omitempty）
+			if jsonTag == key {
+				fieldValue := sValue.Field(i)
+				if fieldValue.CanSet() {
+					switch fieldValue.Kind() {
+					case reflect.String:
+						trimmedValue := strings.Trim(value, "\"") // 移除双引号
+						fieldValue.SetString(trimmedValue)
+					case reflect.Float64:
+						if val, err := strconv.ParseFloat(value, 64); err == nil {
+							fieldValue.SetFloat(val)
+						}
+					case reflect.Int:
+						if val, err := strconv.Atoi(value); err == nil {
+							fieldValue.SetInt(int64(val))
+						}
+					case reflect.Bool:
+						if val, err := strconv.ParseBool(value); err == nil {
+							fieldValue.SetBool(val)
+						}
+					}
+				}
+			}
+		}
+	}
+	return settings
+}
+
+func settingsToString(settings *GameWorldSettings) string {
+	var settingsParts []string
+
+	sValue := reflect.ValueOf(settings).Elem()
+	sType := sValue.Type()
+
+	for i := 0; i < sValue.NumField(); i++ {
+		field := sType.Field(i)
+		fieldValue := sValue.Field(i)
+
+		jsonTag := firstToUpper(strings.Split(field.Tag.Get("json"), ",")[0]) // 获取json标签的第一部分，并将首字母转换为大写
+		var valueString string
+
+		switch fieldValue.Kind() {
+		case reflect.String:
+			valueString = "\"" + fieldValue.String() + "\"" // 添加双引号
+		case reflect.Float64:
+			valueString = strconv.FormatFloat(fieldValue.Float(), 'f', 6, 64) // 格式化浮点数，保留6位小数
+		case reflect.Int:
+			valueString = strconv.FormatInt(fieldValue.Int(), 10)
+		case reflect.Bool:
+			valueString = strconv.FormatBool(fieldValue.Bool())
+		}
+
+		settingsPart := fmt.Sprintf("%s=%s", jsonTag, valueString)
+		settingsParts = append(settingsParts, settingsPart)
+	}
+
+	return "(" + strings.Join(settingsParts, ",") + ")"
+}
+
+func writeGameWorldSettings(config *Config, settings *GameWorldSettings) error {
+	iniPath := filepath.Join(config.GameSavePath, "Config", "WindowsServer", "PalWorldSettings.ini")
+
+	// 加载INI文件
+	cfg, err := ini.Load(iniPath)
+	if err != nil {
+		return err
+	}
+
+	// 获取或创建section
+	sectionName := "/Script/Pal.PalGameWorldSettings"
+	section, err := cfg.GetSection(sectionName)
+	if err != nil {
+		if section, err = cfg.NewSection(sectionName); err != nil {
+			return err
+		}
+	}
+
+	// 使用settingsToString函数生成OptionSettings值
+	optionSettingsValue := settingsToString(settings)
+
+	// 获取或创建OptionSettings项，并设置其值
+	optionSettingsKey, err := section.GetKey("OptionSettings")
+	if err != nil {
+		if _, err = section.NewKey("OptionSettings", optionSettingsValue); err != nil {
+			return err
+		}
+	} else {
+		optionSettingsKey.SetValue(optionSettingsValue)
+	}
+
+	// 保存修改后的INI文件
+	return cfg.SaveTo(iniPath)
 }

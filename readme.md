@@ -18,6 +18,10 @@ https://gist.github.com/Bluefissure/b0fcb05c024ee60cad4e23eb55463062
 
 ## 使用方法
 
+本项目可以接管游戏服务端配置，可以以json的格式配置游戏服务端
+
+在本程序运行时，直接修改config.json会将改动自动同步到PalWorldSettings.ini
+
 启动后配置（会继续完善）
 
 打开\steamcmd\steamapps\common\PalServer\DefaultPalWorldSettings.ini配置文件

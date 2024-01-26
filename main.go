@@ -7,7 +7,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 )
 
@@ -26,6 +28,12 @@ func main() {
 	supervisor := NewSupervisor(config)
 	go supervisor.Start()
 
+	if !supervisor.isServiceRunning() {
+		supervisor.restartService()
+	} else {
+		fmt.Printf("当前服务端正常运行中,守护和内存助手已启动\n")
+	}
+
 	// 设置备份任务
 	backupTask := NewBackupTask(config)
 	go backupTask.Schedule()
@@ -40,7 +48,8 @@ func main() {
 
 	if runtime.GOOS == "windows" {
 		if config.MemoryCleanupInterval != 0 {
-			log.Printf("你决定使用rammap清理内存....这会导致游戏卡顿")
+			log.Printf("你决定使用rammap清理内存....这不会导致游戏卡顿")
+
 			// 提取并保存RAMMap到临时文件
 			rammapExecutable, err := extractRAMMapExecutable()
 			if err != nil {
@@ -50,16 +59,52 @@ func main() {
 
 			// 创建定时器，根据配置间隔定期运行RAMMap
 			ticker := time.NewTicker(time.Duration(config.MemoryCleanupInterval) * time.Second)
-			defer ticker.Stop()
-
-			for range ticker.C {
-				runRAMMap(rammapExecutable)
-			}
+			go func() {
+				defer ticker.Stop()
+				for range ticker.C {
+					runRAMMap(rammapExecutable)
+				}
+			}()
 		}
 	}
 
-	// 主循环，等待用户输入或退出信号
-	select {}
+	if runtime.GOOS == "windows" {
+		// 创建一个定时器，每10秒触发一次，保存游戏设置
+		saveSettingsTicker := time.NewTicker(10 * time.Second)
+		go func() {
+			defer saveSettingsTicker.Stop()
+			for range saveSettingsTicker.C {
+				// 定时保存配置
+				config := readConfigv2()
+				err := writeGameWorldSettings(&config, config.WorldSettings)
+				if err != nil {
+					fmt.Println("Error writing game world settings:", err)
+				} else {
+					fmt.Println("Game world settings saved successfully.")
+				}
+			}
+		}()
+	}
+
+	// 设置信号捕获
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// 等待信号
+	<-sigChan
+	if runtime.GOOS == "windows" {
+		// 接收到退出信号，写回配置
+		err := writeGameWorldSettings(&config, config.WorldSettings)
+		if err != nil {
+			// 处理写回错误
+			fmt.Println("Error writing game world settings:", err)
+		} else {
+			fmt.Println("Success writing game world settings")
+		}
+	}
+
+	// 正常退出程序
+	os.Exit(0)
 
 }
 
