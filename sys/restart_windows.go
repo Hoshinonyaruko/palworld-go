@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"syscall"
 	"unsafe"
@@ -68,4 +69,19 @@ func setConsoleTitleWindows(title string) error {
 		return err
 	}
 	return nil
+}
+
+func KillProcess() error {
+	var cmd *exec.Cmd
+
+	if runtime.GOOS == "windows" {
+		// Windows: 直接指定要结束的进程名称
+		cmd = exec.Command("taskkill", "/IM", "PalServer-Win64-Test-Cmd.exe", "/F")
+	} else {
+		// 非Windows: 使用pkill命令和进程名称
+		cmd = exec.Command("pkill", "-f", "PalServer-Win64-Test-Cmd.exe")
+	}
+
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd.Run()
 }
