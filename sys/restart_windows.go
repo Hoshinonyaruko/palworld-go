@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"syscall"
+	"unsafe"
 )
 
 // WindowsRestarter implements the Restarter interface for Windows systems.
@@ -44,5 +46,26 @@ func (r *WindowsRestarter) Restart(executablePath string) error {
 	os.Exit(0)
 
 	// This return statement will never be reached
+	return nil
+}
+
+// windows
+func setConsoleTitleWindows(title string) error {
+	kernel32, err := syscall.LoadDLL("kernel32.dll")
+	if err != nil {
+		return err
+	}
+	proc, err := kernel32.FindProc("SetConsoleTitleW")
+	if err != nil {
+		return err
+	}
+	p0, err := syscall.UTF16PtrFromString(title)
+	if err != nil {
+		return err
+	}
+	r1, _, err := proc.Call(uintptr(unsafe.Pointer(p0)))
+	if r1 == 0 {
+		return err
+	}
 	return nil
 }
