@@ -4,6 +4,7 @@
 package sys
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"syscall"
@@ -40,5 +41,11 @@ func (r *UnixRestarter) Restart(executableName string) error {
 	// The current process can now exit
 	os.Exit(0)
 
+	return nil
+}
+
+// windows
+func setConsoleTitleWindows(title string) error {
+	fmt.Printf("\033]0;%s\007", title)
 	return nil
 }
