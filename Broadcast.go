@@ -4,15 +4,17 @@ import (
 	"log"
 	"math/rand"
 	"time"
+
+	"github.com/hoshinonyaruko/palworld-go/config"
 )
 
 type palworldBroadcast struct {
-	Config     Config
+	Config     config.Config
 	Ticker     *time.Ticker
 	BackupTask *BackupTask
 }
 
-func NewpalworldBroadcast(config Config) *palworldBroadcast {
+func NewpalworldBroadcast(config config.Config) *palworldBroadcast {
 	return &palworldBroadcast{
 		Config: config,
 		Ticker: time.NewTicker(time.Duration(config.MessageBroadcastInterval) * time.Second),

@@ -9,14 +9,16 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/hoshinonyaruko/palworld-go/config"
 )
 
 type Supervisor struct {
-	Config     Config
+	Config     config.Config
 	RconClient RconClient
 }
 
-func NewSupervisor(config Config) *Supervisor {
+func NewSupervisor(config config.Config) *Supervisor {
 	return &Supervisor{Config: config}
 }
 

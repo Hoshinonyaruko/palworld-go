@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"encoding/json"
@@ -133,7 +133,7 @@ type GameWorldSettings struct {
 const configFile = "config.json"
 
 // readConfig 尝试读取配置文件，如果失败则创建并自动配置默认配置
-func readConfig() Config {
+func ReadConfig() Config {
 	var config Config
 
 	data, err := os.ReadFile(configFile)
@@ -163,8 +163,8 @@ func readConfig() Config {
 	return config
 }
 
-// readConfigv2 尝试读取配置文件，如果失败则创建并自动配置默认配置
-func readConfigv2() Config {
+// ReadConfigv2 尝试读取配置文件，如果失败则创建并自动配置默认配置
+func ReadConfigv2() Config {
 	var config Config
 
 	data, err := os.ReadFile(configFile)
@@ -296,7 +296,7 @@ func AutoConfigurePaths(config *Config) error {
 		//仅在windows系统灰度该特性
 		if runtime.GOOS == "windows" {
 			//这里刷新
-			gameworldsettings, err := readGameWorldSettings(config)
+			gameworldsettings, err := ReadGameWorldSettings(config)
 			if err != nil {
 				log.Printf("解析游戏parworldsetting出错,错误%v", err)
 				status.SetsuccessReadGameWorldSettings(false)
@@ -322,7 +322,7 @@ func AutoConfigurePaths(config *Config) error {
 	return nil
 }
 
-func readGameWorldSettings(config *Config) (*GameWorldSettings, error) {
+func ReadGameWorldSettings(config *Config) (*GameWorldSettings, error) {
 	iniPath := filepath.Join(config.GameSavePath, "Config", "WindowsServer", "PalWorldSettings.ini")
 
 	// 加载INI文件
@@ -446,7 +446,7 @@ func settingsToString(settings *GameWorldSettings) string {
 	return "(" + strings.Join(settingsParts, ",") + ")"
 }
 
-func writeGameWorldSettings(config *Config, settings *GameWorldSettings) error {
+func WriteGameWorldSettings(config *Config, settings *GameWorldSettings) error {
 	iniPath := filepath.Join(config.GameSavePath, "Config", "WindowsServer", "PalWorldSettings.ini")
 
 	// 加载INI文件

@@ -5,12 +5,19 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/hoshinonyaruko/palworld-go/config"
+	"github.com/hoshinonyaruko/palworld-go/sys"
+	"github.com/hoshinonyaruko/palworld-go/webui"
 )
 
 //go:embed RAMMap64.exe
@@ -18,14 +25,15 @@ var rammapFS embed.FS
 
 func main() {
 	// 读取或创建配置
-	config := readConfig()
+	jsonconfig := config.ReadConfig()
 
 	// 打印配置以确认
-	fmt.Printf("当前配置: %#v\n", config)
+	fmt.Printf("当前配置: %#v\n", jsonconfig)
 	fmt.Printf("作者 早苗狐 答疑群:587997911\n")
-
+	//给程序整个标题
+	sys.SetTitle("作者 早苗狐 答疑群:587997911")
 	// 设置监控和自动重启
-	supervisor := NewSupervisor(config)
+	supervisor := NewSupervisor(jsonconfig)
 	go supervisor.Start()
 
 	if !supervisor.isServiceRunning() {
@@ -33,22 +41,51 @@ func main() {
 	} else {
 		fmt.Printf("当前服务端正常运行中,守护和内存助手已启动\n")
 	}
-
+	//cookie数据库
+	webui.InitializeDB()
+	r := gin.Default()
+	//webui和它的api
+	webuiGroup := r.Group("/")
+	{
+		webuiGroup.GET("/*filepath", webui.CombinedMiddleware(jsonconfig))
+		webuiGroup.POST("/*filepath", webui.CombinedMiddleware(jsonconfig))
+		webuiGroup.PUT("/*filepath", webui.CombinedMiddleware(jsonconfig))
+		webuiGroup.DELETE("/*filepath", webui.CombinedMiddleware(jsonconfig))
+		webuiGroup.PATCH("/*filepath", webui.CombinedMiddleware(jsonconfig))
+	}
+	// 创建一个http.Server实例（主服务器）
+	httpServer := &http.Server{
+		Addr:    "0.0.0.0:52000",
+		Handler: r,
+	}
+	fmt.Printf("webui-api运行在52000端口\n")
+	// 在一个新的goroutine中启动主服务器
+	go func() {
+		// 使用HTTP
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
 	// 设置备份任务
-	backupTask := NewBackupTask(config)
+	backupTask := NewBackupTask(jsonconfig)
 	go backupTask.Schedule()
 
 	// 设置推送任务
-	palworldBroadcast := NewpalworldBroadcast(config)
+	palworldBroadcast := NewpalworldBroadcast(jsonconfig)
 	go palworldBroadcast.Schedule()
 
 	// 设置内存检查任务
-	memoryCheckTask := NewMemoryCheckTask(config, backupTask)
+	memoryCheckTask := NewMemoryCheckTask(jsonconfig, backupTask)
 	go memoryCheckTask.Schedule()
+	fmt.Printf("webui运行在52000端口\n")
+	fmt.Printf("webui运行在52000端口\n")
+	fmt.Printf("webui运行在52000端口\n")
+	fmt.Printf("http://127.0.0.1:52000\n")
+	fmt.Printf("开放端口后可外网访问,用户名,服务器名(可以中文),密码,服务器adminpassword\n")
 
 	if runtime.GOOS == "windows" {
-		if config.MemoryCleanupInterval != 0 {
-			log.Printf("你决定使用rammap清理内存....这不会导致游戏卡顿")
+		if jsonconfig.MemoryCleanupInterval != 0 {
+			log.Printf("你决定使用rammap清理内存....这不会导致游戏卡顿\n")
 
 			// 提取并保存RAMMap到临时文件
 			rammapExecutable, err := extractRAMMapExecutable()
@@ -58,7 +95,7 @@ func main() {
 			defer os.Remove(rammapExecutable) // 确保程序结束时删除文件
 
 			// 创建定时器，根据配置间隔定期运行RAMMap
-			ticker := time.NewTicker(time.Duration(config.MemoryCleanupInterval) * time.Second)
+			ticker := time.NewTicker(time.Duration(jsonconfig.MemoryCleanupInterval) * time.Second)
 			go func() {
 				defer ticker.Stop()
 				for range ticker.C {
@@ -75,8 +112,8 @@ func main() {
 			defer saveSettingsTicker.Stop()
 			for range saveSettingsTicker.C {
 				// 定时保存配置
-				config := readConfigv2()
-				err := writeGameWorldSettings(&config, config.WorldSettings)
+				jsonconfig := config.ReadConfigv2()
+				err := config.WriteGameWorldSettings(&jsonconfig, jsonconfig.WorldSettings)
 				if err != nil {
 					fmt.Println("Error writing game world settings:", err)
 				} else {
@@ -94,8 +131,8 @@ func main() {
 	<-sigChan
 	if runtime.GOOS == "windows" {
 		// 接收到退出信号，写回配置，守护退出会刷新游戏ini
-		config := readConfigv2()
-		err := writeGameWorldSettings(&config, config.WorldSettings)
+		jsonconfig := config.ReadConfigv2()
+		err := config.WriteGameWorldSettings(&jsonconfig, jsonconfig.WorldSettings)
 		if err != nil {
 			// 处理写回错误
 			fmt.Println("Error writing game world settings:", err)

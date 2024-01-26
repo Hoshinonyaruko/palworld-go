@@ -4,6 +4,9 @@ palworld-go.exe
 palworld.exe
 pal.exe
 /test
-/front
+#/front
 
 .verysync
+
+# ignore dist
+webui/dist/
