@@ -1,0 +1,765 @@
+<template>
+  <q-layout view="hHh lpR fFf">
+    <!-- 顶部滑动栏 -->
+    <q-header
+      class="q-layout__section--marginal main-layout-header shadow-up-2 fixed-top"
+    >
+      <q-tabs v-model="tab" align="justify" scrollable>
+        <q-tab name="guard" label="守护配置修改" />
+        <q-tab name="server" label="服务端配置修改" />
+        <q-tab name="command" label="服务器指令" />
+        <q-tab name="advanced" label="高级配置修改" @click="redirectToSav" />
+      </q-tabs>
+    </q-header>
+
+    <!-- 主页面内容区 -->
+    <q-page-container class="custom-flex-fit fit column no-wrap">
+      <q-page padding v-if="tab === 'guard'">
+        <!-- 守护配置修改页面内容 -->
+        <div class="q-gutter-xs q-mt-md">
+          <div class="text-subtitle2">守护配置修改</div>
+
+          <!-- 文本输入框 -->
+          <q-input
+            filled
+            v-model="config.address"
+            label="服务器 IP 地址"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.rconPort"
+            label="RCON 端口号"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.adminPassword"
+            label="RCON 管理员密码"
+            type="password"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.processName"
+            label="进程名称"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.serviceLogFile"
+            label="日志文件路径"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.serviceErrorFile"
+            label="错误日志文件路径"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.maintenanceWarningMessage"
+            label="维护警告消息"
+            class="q-my-md"
+          />
+
+          <!-- 数字输入框 -->
+          <q-input
+            filled
+            v-model.number="config.backupInterval"
+            type="number"
+            label="备份间隔（秒）"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.memoryCheckInterval"
+            type="number"
+            label="内存占用检测时间（秒）"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.memoryCleanupInterval"
+            type="number"
+            label="内存清理时间间隔（秒）"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.messageBroadcastInterval"
+            type="number"
+            label="消息广播周期（秒）"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.port"
+            type="number"
+            label="端口"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.players"
+            type="number"
+            label="玩家数"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.totalMemoryGB"
+            type="number"
+            label="当前服务器总内存(GB)"
+            class="q-my-md"
+          />
+          <!-- 数组类型的配置项：定期推送的消息数组 -->
+          <div class="q-my-md">
+            <div class="text-h6">定期推送的消息</div>
+            <div
+              v-for="(message, index) in config.regularMessages"
+              :key="index"
+              class="q-mb-sm"
+            >
+              <q-input
+                filled
+                v-model="config.regularMessages[index]"
+                label="消息内容"
+                dense
+              />
+              <q-btn
+                flat
+                icon="delete"
+                @click="removeMessage(index)"
+                class="q-ml-md"
+              />
+            </div>
+            <q-btn
+              flat
+              icon="add"
+              @click="addMessage"
+              label="添加消息"
+              class="q-mt-md"
+            />
+          </div>
+
+          <!-- 保存按钮 -->
+          <q-btn
+            color="primary"
+            label="保存"
+            @click="saveConfig"
+            class="q-mt-md"
+          />
+          <!-- 重启服务端按钮 -->
+          <q-btn
+            color="secondary"
+            label="重启服务端"
+            @click="restartServer"
+            class="q-mt-md"
+          />
+        </div>
+      </q-page>
+      <q-page padding v-if="tab === 'server'">
+        <!-- 服务端配置修改页面内容 -->
+        <div class="q-gutter-xs q-mt-md">
+          <div class="text-subtitle2">服务端配置修改</div>
+          <!-- 难度和死亡掉落 -->
+
+          <!-- 难度选择框 -->
+          <div class="q-my-md">
+            <q-select
+              filled
+              v-model="config.worldSettings.difficulty"
+              :options="difficultyOptions"
+              label="难度"
+            />
+            <q-btn
+              icon="help"
+              flat
+              round
+              dense
+              @click="toggleTooltip2('difficulty')"
+            />
+            <q-tooltip v-if="showDifficultyTooltip">
+              难度说明：简单（Eazy），困难（Difficult）
+            </q-tooltip>
+          </div>
+
+          <!-- 死亡掉落选择框 -->
+          <div class="q-my-md">
+            <q-select
+              filled
+              v-model="config.worldSettings.deathPenalty"
+              :options="deathPenaltyOptions"
+              label="死亡掉落"
+            />
+            <q-btn
+              icon="help"
+              flat
+              round
+              dense
+              @click="toggleTooltip('deathPenalty')"
+            />
+            <q-tooltip v-if="showDeathPenaltyTooltip">
+              死亡掉落说明：不掉落（None），只掉落物品（Item），掉落物品和装备（ItemAndEquipment），掉落物品、装备和帕鲁（All）
+            </q-tooltip>
+          </div>
+          <!-- 文本输入框 -->
+          <q-input
+            filled
+            v-model="config.worldSettings.serverName"
+            label="服务器名称"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.worldSettings.serverDescription"
+            label="服务器描述"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.worldSettings.adminPassword"
+            label="管理员密码"
+            type="password"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.worldSettings.serverPassword"
+            label="服务器密码"
+            type="password"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.worldSettings.publicIP"
+            label="公共 IP 地址"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.worldSettings.region"
+            label="区域"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.worldSettings.banListURL"
+            label="封禁列表 URL"
+            class="q-my-md"
+          />
+
+          <!-- 数字输入框 -->
+          <q-input
+            filled
+            v-model.number="config.worldSettings.publicPort"
+            type="number"
+            label="公共端口"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.dayTimeSpeedRate"
+            type="number"
+            label="白天时间速率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.nightTimeSpeedRate"
+            type="number"
+            label="夜晚时间速率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.expRate"
+            type="number"
+            label="经验值速率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.palCaptureRate"
+            type="number"
+            label="Pal 捕获率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.palSpawnNumRate"
+            type="number"
+            label="Pal 生成数量率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.palDamageRateAttack"
+            type="number"
+            label="Pal 攻击伤害率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.palDamageRateDefense"
+            type="number"
+            label="Pal 防御伤害率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.playerDamageRateAttack"
+            type="number"
+            label="玩家攻击伤害率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.playerDamageRateDefense"
+            type="number"
+            label="玩家防御伤害率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.playerStomachDecreaceRate"
+            type="number"
+            label="玩家饥饿下降率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.playerStaminaDecreaceRate"
+            type="number"
+            label="玩家耐力下降率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.playerAutoHPRegeneRate"
+            type="number"
+            label="玩家自动生命恢复率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.playerAutoHpRegeneRateInSleep"
+            type="number"
+            label="玩家睡眠中自动生命恢复率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.palStomachDecreaceRate"
+            type="number"
+            label="Pal 饥饿下降率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.palStaminaDecreaceRate"
+            type="number"
+            label="Pal 耐力下降率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.palAutoHPRegeneRate"
+            type="number"
+            label="Pal 自动生命恢复率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.palAutoHpRegeneRateInSleep"
+            type="number"
+            label="Pal 睡眠中自动生命恢复率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.buildObjectDamageRate"
+            type="number"
+            label="建筑物伤害率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="
+              config.worldSettings.buildObjectDeteriorationDamageRate
+            "
+            type="number"
+            label="建筑物恶化伤害率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.collectionDropRate"
+            type="number"
+            label="采集掉落率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.collectionObjectHpRate"
+            type="number"
+            label="采集物体生命值率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="
+              config.worldSettings.collectionObjectRespawnSpeedRate
+            "
+            type="number"
+            label="采集物体重生速率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.enemyDropItemRate"
+            type="number"
+            label="敌人掉落物品率"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.dropItemAliveMaxHours"
+            type="number"
+            label="掉落物品存活最大小时数"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="
+              config.worldSettings.autoResetGuildTimeNoOnlinePlayers
+            "
+            type="number"
+            label="公会自动重置无在线玩家时间"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.palEggDefaultHatchingTime"
+            type="number"
+            label="Pal 蛋默认孵化时间"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.workSpeedRate"
+            type="number"
+            label="工作速度率"
+            class="q-my-md"
+          />
+
+          <!-- 开关 -->
+          <q-toggle
+            v-model="config.worldSettings.enablePlayerToPlayerDamage"
+            label="允许玩家对玩家伤害"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.enableFriendlyFire"
+            label="允许友军火力"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.enableInvaderEnemy"
+            label="允许侵略者敌人"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.activeUNKO"
+            label="激活UNKO"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.enableAimAssistPad"
+            label="启用手柄瞄准辅助"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.enableAimAssistKeyboard"
+            label="启用键盘瞄准辅助"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.autoResetGuildNoOnlinePlayers"
+            label="自动重置无在线玩家的公会"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.enableNonLoginPenalty"
+            label="启用非登录处罚"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.enableFastTravel"
+            label="启用快速旅行"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.isStartLocationSelectByMap"
+            label="是否通过地图选择开始位置"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.existPlayerAfterLogout"
+            label="玩家登出后保留角色"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.enableDefenseOtherGuildPlayer"
+            label="启用对其他公会玩家的防御"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.isMultiplay"
+            label="是否多人游戏"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.isPvP"
+            label="是否开启PvP"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.canPickupOtherGuildDeathPenaltyDrop"
+            label="是否能拾取其他公会死亡掉落"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.rconEnabled"
+            label="启用RCON"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.useAuth"
+            label="使用认证"
+            class="q-my-md"
+          />
+
+          <!-- 保存按钮 -->
+          <q-btn
+            color="primary"
+            label="保存"
+            @click="saveConfig"
+            class="q-mt-md"
+          />
+          <!-- 重启服务端按钮 -->
+          <q-btn
+            color="secondary"
+            label="重启服务端"
+            @click="restartServer"
+            class="q-mt-md"
+          />
+        </div>
+      </q-page>
+      <q-page padding v-if="tab === 'command'">
+        <div class="q-pa-md">
+          <div class="text-h6">服务器指令页面</div>
+          <q-input
+            v-model="command"
+            label="输入指令"
+            filled
+            v-on:keyup.enter="sendCommand"
+          />
+          <div class="q-mt-md">
+            <q-card>
+              <q-card-section class="bg-grey-2">
+                <div
+                  v-for="(message, index) in messages"
+                  :key="index"
+                  class="q-mb-sm"
+                >
+                  {{ message }}
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+          <!-- 指令快捷按钮 -->
+          <div class="q-mt-md">
+            <q-btn
+              v-for="(cmd, index) in commands"
+              :key="index"
+              :label="cmd.label"
+              @click="fillCommand(cmd.prefix)"
+              class="q-mr-md q-mb-md"
+            />
+          </div>
+        </div>
+      </q-page>
+    </q-page-container>
+  </q-layout>
+</template>
+
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue';
+import axios from 'axios';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
+const tab = ref('guard'); // 默认选中守护配置修改
+// 难度选项
+const difficultyOptions = ['Eazy', 'None', 'Difficult'];
+// 死亡掉落选项
+const deathPenaltyOptions = ['None', 'Item', 'ItemAndEquipment', 'All'];
+
+const showDifficultyTooltip = ref(false);
+const showDeathPenaltyTooltip = ref(false);
+
+const toggleTooltip = (type) => {
+  showDeathPenaltyTooltip.value = !showDeathPenaltyTooltip.value;
+};
+
+const toggleTooltip2 = (type) => {
+  showDifficultyTooltip.value = !showDifficultyTooltip.value;
+};
+
+const redirectToSav = () => {
+  window.location.href = '/sav/index.html'; // 重定向到 /sav 路径
+};
+
+// // 难度选项
+// const difficultyOptions = [
+//   { label: '简单', value: 'Eazy' },
+//   { label: '困难', value: 'Difficult' },
+// ];
+
+// // 死亡掉落选项
+// const deathPenaltyOptions = [
+//   { label: '不掉落', value: 'None' },
+//   { label: '只掉落物品', value: 'Item' },
+//   { label: '掉落物品和装备', value: 'ItemAndEquipment' },
+//   { label: '掉落物品、装备和帕鲁', value: 'All' },
+// ];
+const config = ref({});
+
+// 增加一个消息到数组
+const addMessage = () => {
+  config.value.regularMessages.push('');
+};
+
+// 从数组中移除一个消息
+const removeMessage = (index) => {
+  config.value.regularMessages.splice(index, 1);
+};
+
+onMounted(async () => {
+  try {
+    const response = await axios.get('/api/getjson');
+    config.value = response.data;
+  } catch (error) {
+    console.error('Error fetching configuration:', error);
+  }
+});
+
+const saveConfig = async () => {
+  try {
+    await axios.post('/api/savejson', config.value);
+    alert('配置已保存！');
+  } catch (error) {
+    console.error('Error saving configuration:', error);
+  }
+};
+
+const restartServer = async () => {
+  try {
+    const response = await axios.post(
+      '/api/restart',
+      {},
+      {
+        withCredentials: true, // 确保携带 cookie
+      }
+    );
+    if (response.status === 200) {
+      alert('服务器重启命令已发送！');
+    } else {
+      console.error('服务器重启失败：', response.status);
+    }
+  } catch (error) {
+    console.error('Error sending restart command:', error);
+  }
+};
+
+// rcon终端
+const command = ref('');
+const messages = ref([]);
+let websocket = null; // 这里声明websocket变量
+
+const connectWebSocket = () => {
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const host = window.location.host; // 包含主机名和端口（如果有的话）
+  const wsURL = `${wsProtocol}://${host}/api/ws`;
+
+  // 使用已经声明的websocket变量
+  websocket = new WebSocket(wsURL);
+
+  websocket.onmessage = (event) => {
+    messages.value.push(event.data);
+  };
+
+  websocket.onclose = () => {
+    console.log('WebSocket disconnected');
+    // 处理重连逻辑或通知用户
+  };
+
+  websocket.onerror = (error) => {
+    console.error('WebSocket error:', error);
+    // 处理错误记录或通知用户
+  };
+};
+
+// 确保在组件销毁时关闭websocket
+onUnmounted(() => {
+  if (websocket) {
+    websocket.close();
+  }
+});
+
+const sendCommand = () => {
+  if (websocket && websocket.readyState === WebSocket.OPEN) {
+    websocket.send(command.value);
+    command.value = ''; // Clear the input after sending
+  } else {
+    console.error('WebSocket is not connected.');
+  }
+};
+
+onMounted(() => {
+  connectWebSocket();
+});
+
+onUnmounted(() => {
+  if (websocket) {
+    websocket.close();
+  }
+});
+
+// 定义指令模板
+const commands = [
+  { label: '关闭服务器', prefix: 'Shutdown {Seconds} {MessageText}' },
+  { label: '强制关闭', prefix: 'DoExit' },
+  { label: '广播', prefix: 'Broadcast {MessageText}' },
+  { label: '踢人', prefix: 'KickPlayer {SteamID}' },
+  { label: '禁止玩家进入', prefix: 'BanPlayer {SteamID}' },
+  { label: '传送', prefix: 'TeleportToPlayer {SteamID}' },
+  { label: '传送到自己', prefix: 'TeleportToMe {SteamID}' },
+  { label: '显示玩家列表', prefix: 'ShowPlayers' },
+  { label: '服务器信息', prefix: 'Info' },
+  { label: '立刻存档', prefix: 'Save' },
+];
+
+// 填充指令到输入框的函数
+const fillCommand = (cmd) => {
+  command.value = cmd;
+};
+</script>
+
+<style scoped>
+/* 根据需要添加CSS样式 */
+</style>

@@ -9,15 +9,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hoshinonyaruko/palworld-go/config"
 )
 
 type MemoryCheckTask struct {
-	Config     Config
+	Config     config.Config
 	Ticker     *time.Ticker
 	BackupTask *BackupTask
 }
 
-func NewMemoryCheckTask(config Config, BackupTask *BackupTask) *MemoryCheckTask {
+func NewMemoryCheckTask(config config.Config, BackupTask *BackupTask) *MemoryCheckTask {
 	return &MemoryCheckTask{
 		Config:     config,
 		Ticker:     time.NewTicker(time.Duration(config.MemoryCheckInterval) * time.Second),

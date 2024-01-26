@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/gorcon/rcon"
+	"github.com/hoshinonyaruko/palworld-go/config"
 )
 
 // RconClient 结构体，用于存储RCON连接和配置信息
@@ -49,7 +50,7 @@ func RestartServer(RconClient *RconClient) error {
 }
 
 // 发广播 重启维护
-func HandleMemoryUsage(threshold float64, RconClient *RconClient, config Config) {
+func HandleMemoryUsage(threshold float64, RconClient *RconClient, config config.Config) {
 	// 广播内存超阈值的警告
 	if _, err := RconClient.Conn.Execute(fmt.Sprintf("broadcast Memory_Is_Above_%v%%", threshold)); err != nil {
 		log.Printf("Error broadcasting memory threshold alert: %v", err)

@@ -10,13 +10,19 @@
 
 _✨ 适用于palworld的进程守护+强力内存释放+内存不足自动重启服务端 ✨_  
 
+_✨ 使用go+quasar实现的palworld webui ✨_  
+
 ## 特别鸣谢+推荐
 
 本项目的直接参考（linux版的palworld服务端守护脚本）
 
 https://gist.github.com/Bluefissure/b0fcb05c024ee60cad4e23eb55463062
+本项目内置了该项目的编译后网页dist
+https://github.com/Bluefissure/pal-conf
 
 ## 使用方法
+
+webui可友善的可视化的修改帕鲁服务器，守护配置，内存配置，目前webui端口固定52000
 
 本项目可以接管游戏服务端配置，可以以json的格式配置游戏服务端
 

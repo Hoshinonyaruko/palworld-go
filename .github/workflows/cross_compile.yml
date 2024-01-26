@@ -34,6 +34,33 @@ jobs:
       with:
         go-version: '1.21.1' # Set to specific Go version.
 
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '20.9.0' # 使用最新的 LTS 版本
+
+    - name: Cache Node modules
+      uses: actions/cache@v2
+      with:
+        path: |
+          front/node_modules
+          ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Install Quasar CLI and dependencies
+      run: |
+        cd front
+        npm install -g @quasar/cli
+        npm install
+
+    - name: Build Quasar Project
+      run: |
+        cd front
+        quasar build
+
     - name: Create output directory
       run: mkdir -p output
 

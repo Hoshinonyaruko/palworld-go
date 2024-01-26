@@ -6,14 +6,16 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/hoshinonyaruko/palworld-go/config"
 )
 
 type BackupTask struct {
-	Config Config
+	Config config.Config
 	Ticker *time.Ticker
 }
 
-func NewBackupTask(config Config) *BackupTask {
+func NewBackupTask(config config.Config) *BackupTask {
 	return &BackupTask{
 		Config: config,
 		Ticker: time.NewTicker(time.Duration(config.BackupInterval) * time.Second),
