@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
-	"unsafe"
 
 	"golang.org/x/net/html"
 )
@@ -48,27 +46,6 @@ func GetExecutableName() (string, error) {
 // linux
 func setConsoleTitleLinux(title string) {
 	fmt.Printf("\033]0;%s\007", title)
-}
-
-// windows
-func setConsoleTitleWindows(title string) error {
-	kernel32, err := syscall.LoadDLL("kernel32.dll")
-	if err != nil {
-		return err
-	}
-	proc, err := kernel32.FindProc("SetConsoleTitleW")
-	if err != nil {
-		return err
-	}
-	p0, err := syscall.UTF16PtrFromString(title)
-	if err != nil {
-		return err
-	}
-	r1, _, err := proc.Call(uintptr(unsafe.Pointer(p0)))
-	if r1 == 0 {
-		return err
-	}
-	return nil
 }
 
 // 判断系统
