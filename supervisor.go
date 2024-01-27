@@ -76,16 +76,16 @@ func (s *Supervisor) restartService() {
 			"-NoAsyncLoadingThread",
 			"-UseMultithreadForDS",
 			"RconEnabled=True",
-			fmt.Sprintf("AdminPassword=%s", s.Config.AdminPassword),
-			fmt.Sprintf("port=%d", s.Config.Port),
-			fmt.Sprintf("players=%d", s.Config.Players),
+			fmt.Sprintf("AdminPassword=%s", s.Config.WorldSettings.AdminPassword),
+			fmt.Sprintf("port=%d", s.Config.WorldSettings.PublicPort),
+			fmt.Sprintf("players=%d", s.Config.WorldSettings.ServerPlayerMaxNum),
 		}
 		//args = append(args, gameArgs...) // 添加GameWorldSettings参数
 	} else {
-		exePath = filepath.Join(s.Config.GamePath, s.Config.ProcessName)
+		exePath = filepath.Join(s.Config.GamePath, s.Config.ProcessName+".sh")
 		args = []string{ // Linux下可能需要不同的参数
-			fmt.Sprintf("--port=%d", s.Config.Port),
-			fmt.Sprintf("--players=%d", s.Config.Players),
+			fmt.Sprintf("--port=%d", s.Config.WorldSettings.PublicPort),
+			fmt.Sprintf("--players=%d", s.Config.WorldSettings.ServerPlayerMaxNum),
 		}
 	}
 

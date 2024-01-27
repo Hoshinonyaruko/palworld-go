@@ -9,6 +9,7 @@
         <q-tab name="server" label="服务端配置修改" />
         <q-tab name="command" label="服务器指令" />
         <q-tab name="advanced" label="高级配置修改" @click="redirectToSav" />
+        <q-tab name="server-check" label="服务器检测" />
       </q-tabs>
     </q-header>
 
@@ -22,39 +23,8 @@
           <!-- 文本输入框 -->
           <q-input
             filled
-            v-model="config.address"
-            label="服务器 IP 地址"
-            class="q-my-md"
-          />
-          <q-input
-            filled
-            v-model="config.rconPort"
-            label="RCON 端口号"
-            class="q-my-md"
-          />
-          <q-input
-            filled
-            v-model="config.adminPassword"
-            label="RCON 管理员密码"
-            type="password"
-            class="q-my-md"
-          />
-          <q-input
-            filled
             v-model="config.processName"
             label="进程名称"
-            class="q-my-md"
-          />
-          <q-input
-            filled
-            v-model="config.serviceLogFile"
-            label="日志文件路径"
-            class="q-my-md"
-          />
-          <q-input
-            filled
-            v-model="config.serviceErrorFile"
-            label="错误日志文件路径"
             class="q-my-md"
           />
           <q-input
@@ -91,20 +61,6 @@
             v-model.number="config.messageBroadcastInterval"
             type="number"
             label="消息广播周期（秒）"
-            class="q-my-md"
-          />
-          <q-input
-            filled
-            v-model.number="config.port"
-            type="number"
-            label="端口"
-            class="q-my-md"
-          />
-          <q-input
-            filled
-            v-model.number="config.players"
-            type="number"
-            label="玩家数"
             class="q-my-md"
           />
           <q-input
@@ -164,8 +120,22 @@
         <!-- 服务端配置修改页面内容 -->
         <div class="q-gutter-xs q-mt-md">
           <div class="text-subtitle2">服务端配置修改</div>
+          <!-- Rcon -->
+          <q-input
+            filled
+            v-model="config.worldSettings.adminPassword"
+            label="Rcon管理员密码"
+            type="password"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.rconPort"
+            type="number"
+            label="rcon端口号"
+            class="q-my-md"
+          />
           <!-- 难度和死亡掉落 -->
-
           <!-- 难度选择框 -->
           <div class="q-my-md">
             <q-select
@@ -209,7 +179,7 @@
           <q-input
             filled
             v-model="config.worldSettings.serverName"
-            label="服务器名称"
+            label="服务器名称(控制台用户名)"
             class="q-my-md"
           />
           <q-input
@@ -220,15 +190,8 @@
           />
           <q-input
             filled
-            v-model="config.worldSettings.adminPassword"
-            label="管理员密码"
-            type="password"
-            class="q-my-md"
-          />
-          <q-input
-            filled
             v-model="config.worldSettings.serverPassword"
-            label="服务器密码"
+            label="服务器进入密码"
             type="password"
             class="q-my-md"
           />
@@ -561,12 +524,16 @@
       <q-page padding v-if="tab === 'command'">
         <div class="q-pa-md">
           <div class="text-h6">服务器指令页面</div>
+
+          <q-toggle v-model="useCommands2" label="自动填充" class="q-mb-md" />
+
           <q-input
             v-model="command"
             label="输入指令"
             filled
             v-on:keyup.enter="sendCommand"
           />
+
           <div class="q-mt-md">
             <q-card>
               <q-card-section class="bg-grey-2">
@@ -580,10 +547,11 @@
               </q-card-section>
             </q-card>
           </div>
+
           <!-- 指令快捷按钮 -->
           <div class="q-mt-md">
             <q-btn
-              v-for="(cmd, index) in commands"
+              v-for="(cmd, index) in useCommands2 ? commands2 : commands"
               :key="index"
               :label="cmd.label"
               @click="fillCommand(cmd.prefix)"
@@ -592,22 +560,37 @@
           </div>
         </div>
       </q-page>
+      <q-page padding v-if="tab === 'server-check'">
+        <div class="text-h6">服务器检测页面</div>
+        <running-process-status
+          v-if="status.process && status.process.status === 'running'"
+          :status="status"
+        />
+      </q-page>
     </q-page-container>
   </q-layout>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, onBeforeUnmount, watch } from 'vue';
 import axios from 'axios';
-import { useRouter } from 'vue-router';
+import { QPage, QCard, QCardSection } from 'quasar';
+import RunningProcessStatus from 'components/RunningProcessStatus.vue';
 
-const router = useRouter();
+//给components传递数据
+const props = defineProps({
+  uin: Number,
+});
+
+const status = ref(null); // 假设 ProcessInfo 是一个对象，这里使用 null 作为初始值
 
 const tab = ref('guard'); // 默认选中守护配置修改
 // 难度选项
 const difficultyOptions = ['Eazy', 'None', 'Difficult'];
 // 死亡掉落选项
 const deathPenaltyOptions = ['None', 'Item', 'ItemAndEquipment', 'All'];
+
+const useCommands2 = ref(false); // 切换选择框的状态
 
 const showDifficultyTooltip = ref(false);
 const showDeathPenaltyTooltip = ref(false);
@@ -741,7 +724,7 @@ onUnmounted(() => {
 });
 
 // 定义指令模板
-const commands = [
+const commands2 = [
   { label: '关闭服务器', prefix: 'Shutdown {Seconds} {MessageText}' },
   { label: '强制关闭', prefix: 'DoExit' },
   { label: '广播', prefix: 'Broadcast {MessageText}' },
@@ -754,10 +737,57 @@ const commands = [
   { label: '立刻存档', prefix: 'Save' },
 ];
 
+// 定义指令模板
+const commands = [
+  { label: '关闭服务器', prefix: 'Shutdown ' },
+  { label: '强制关闭', prefix: 'DoExit' },
+  { label: '广播', prefix: 'Broadcast ' },
+  { label: '踢人', prefix: 'KickPlayer ' },
+  { label: '禁止玩家进入', prefix: 'BanPlayer ' },
+  { label: '传送', prefix: 'TeleportToPlayer ' },
+  { label: '传送到自己', prefix: 'TeleportToMe ' },
+  { label: '显示玩家列表', prefix: 'ShowPlayers' },
+  { label: '服务器信息', prefix: 'Info' },
+  { label: '立刻存档', prefix: 'Save' },
+];
+
 // 填充指令到输入框的函数
 const fillCommand = (cmd) => {
   command.value = cmd;
 };
+
+//服务器检测
+
+async function updateStatus() {
+  try {
+    // 移除了 $q.loadingBar 的调用
+    const response = await axios.get('/api/status'); // 调用 /api/status
+    console.log(response.data); // 打印以检查数据结构
+    status.value = response.data;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// 设置定时器来定期更新状态
+const updateTimer = window.setInterval(() => {
+  updateStatus();
+}, 3000);
+
+watch(
+  () => props.uin,
+  async () => {
+    status.value = undefined;
+    await updateStatus();
+  },
+  { immediate: true }
+);
+
+onBeforeUnmount(() => {
+  window.clearInterval(updateTimer);
+});
+
+void updateStatus();
 </script>
 
 <style scoped>

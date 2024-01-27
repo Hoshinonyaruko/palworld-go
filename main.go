@@ -80,8 +80,10 @@ func main() {
 	fmt.Printf("webui运行在52000端口\n")
 	fmt.Printf("webui运行在52000端口\n")
 	fmt.Printf("webui运行在52000端口\n")
-	fmt.Printf("http://127.0.0.1:52000\n")
-	fmt.Printf("开放端口后可外网访问,用户名,服务器名(可以中文),密码,服务器adminpassword\n")
+	fmt.Printf("webui地址:http://127.0.0.1:52000\n")
+	fmt.Printf("开放52000端口后可外网访问,用户名,服务器名(可以中文),初始用户名palgo初始密码useradmin\n")
+	fmt.Printf("为了防止误修改,52000端口仅可在config.json修改\n")
+	OpenWebUI(&jsonconfig)
 
 	if runtime.GOOS == "windows" {
 		if jsonconfig.MemoryCleanupInterval != 0 {
@@ -174,4 +176,23 @@ func runRAMMap(rammapExecutable string) {
 	if err != nil {
 		log.Printf("运行RAMMap时发生错误: %v", err)
 	}
+}
+
+// OpenWebUI 在默认浏览器中打开Web UI
+func OpenWebUI(config *config.Config) error {
+	url := fmt.Sprintf("http://127.0.0.1:%s", config.WebuiPort)
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	default:
+		return fmt.Errorf("不支持的操作系统: %s", runtime.GOOS)
+	}
+
+	return cmd.Start()
 }
