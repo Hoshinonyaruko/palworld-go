@@ -289,9 +289,9 @@ func restartService(cfg config.Config) {
 			"-NoAsyncLoadingThread",
 			"-UseMultithreadForDS",
 			"RconEnabled=True",
-			fmt.Sprintf("AdminPassword=%s", cfg.WorldSettings.AdminPassword),
-			fmt.Sprintf("port=%d", cfg.WorldSettings.PublicPort),
-			fmt.Sprintf("players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
+			fmt.Sprintf("-AdminPassword=%s", cfg.WorldSettings.AdminPassword),
+			fmt.Sprintf("-port=%d", cfg.WorldSettings.PublicPort),
+			fmt.Sprintf("-players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
 		}
 	} else {
 		exePath = filepath.Join(cfg.GamePath, cfg.ProcessName)

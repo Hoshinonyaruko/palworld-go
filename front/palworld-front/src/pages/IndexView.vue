@@ -27,6 +27,11 @@
             label="进程名称"
             class="q-my-md"
           />
+          <q-toggle
+            v-model="config.autoLaunchWebui"
+            label="自动打开 Web UI"
+            class="q-my-md"
+          />
           <q-input
             filled
             v-model="config.maintenanceWarningMessage"
