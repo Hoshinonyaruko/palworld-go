@@ -21,12 +21,9 @@ type Config struct {
 	GameSavePath              string             `json:"gameSavePath"`              // 游戏存档路径 \PalServer\Pal\Saved\文件夹的完整路径
 	BackupPath                string             `json:"backupPath"`                // 备份路径
 	Address                   string             `json:"address"`                   // 服务器 IP 地址
-	RCONPort                  string             `json:"rconPort"`                  // RCON 端口号
-	AdminPassword             string             `json:"adminPassword"`             // RCON 管理员密码
+	WebuiPort                 string             `json:"webuiPort"`                 // Webui 端口号
 	ProcessName               string             `json:"processName"`               // 进程名称 PalServer
 	CheckInterval             int                `json:"checkInterval"`             // 进程存活检查时间（秒）
-	ServiceLogFile            string             `json:"serviceLogFile"`            // 日志文件路径
-	ServiceErrorFile          string             `json:"serviceErrorFile"`          // 错误日志文件路径
 	BackupInterval            int                `json:"backupInterval"`            // 备份间隔（秒）
 	MemoryCheckInterval       int                `json:"memoryCheckInterval"`       // 内存占用检测时间（秒）
 	MemoryUsageThreshold      float64            `json:"memoryUsageThreshold"`      // 重启阈值（百分比）
@@ -35,8 +32,6 @@ type Config struct {
 	RegularMessages           []string           `json:"regularMessages"`           // 定期推送的消息数组
 	MessageBroadcastInterval  int                `json:"messageBroadcastInterval"`  // 消息广播周期（秒）
 	MaintenanceWarningMessage string             `json:"maintenanceWarningMessage"` // 维护警告消息
-	Port                      int                `json:"port"`                      // 端口
-	Players                   int                `json:"players"`                   // 端口
 	WorldSettings             *GameWorldSettings `json:"worldSettings"`             // 帕鲁设定
 }
 
@@ -45,13 +40,10 @@ var defaultConfig = Config{
 	GamePath:                  "",
 	GameSavePath:              "",
 	BackupPath:                "",
-	Address:                   "127.0.0.1:25575",
-	AdminPassword:             "default_password",
+	Address:                   "127.0.0.1",
 	ProcessName:               "PalServer",
-	CheckInterval:             30, // 30 秒
-	RCONPort:                  "25575",
-	ServiceLogFile:            "/service.log",                                              // 示例路径
-	ServiceErrorFile:          "/service.err",                                              // 示例路径
+	CheckInterval:             30,                                                          // 30 秒
+	WebuiPort:                 "52000",                                                     // Webui 端口号
 	BackupInterval:            1800,                                                        // 30 分钟
 	MemoryCheckInterval:       30,                                                          // 30 秒
 	MemoryUsageThreshold:      80,                                                          // 80%
@@ -60,8 +52,6 @@ var defaultConfig = Config{
 	RegularMessages:           []string{"", ""},                                            // 默认的定期推送消息数组，初始可为空
 	MessageBroadcastInterval:  3600,                                                        // 默认消息广播周期，假设为1小时（3600秒）
 	MaintenanceWarningMessage: "server is going to rebot,please relogin at 1minute later.", // 默认的维护警告消息
-	Port:                      8211,
-	Players:                   32,
 }
 
 type GameWorldSettings struct {
@@ -122,8 +112,8 @@ type GameWorldSettings struct {
 	ServerPassword                      string  `json:"serverPassword"`
 	PublicPort                          int     `json:"publicPort"`
 	PublicIP                            string  `json:"publicIP"`
-	RCONEnabled                         bool    `json:"rconEnabled"`
-	RCONPort                            int     `json:"rconPort"`
+	RconEnabled                         bool    `json:"rconEnabled"`
+	RconPort                            int     `json:"rconPort"`
 	Region                              string  `json:"region"`
 	UseAuth                             bool    `json:"useAuth"`
 	BanListURL                          string  `json:"banListURL"`
@@ -263,6 +253,8 @@ func AutoConfigurePaths(config *Config) error {
 	exeName := "PalServer"
 	if runtime.GOOS == "windows" {
 		exeName += ".exe"
+	} else {
+		exeName += ".sh"
 	}
 
 	exePath := filepath.Join(currentDir, exeName)
@@ -293,58 +285,77 @@ func AutoConfigurePaths(config *Config) error {
 		log.Println("你的目录配置已被自动修正,请重新运行本程序。")
 	} else {
 		log.Println("你的目录配置正确。")
-		//仅在windows系统灰度该特性
-		if runtime.GOOS == "windows" {
-			//这里刷新
-			gameworldsettings, err := ReadGameWorldSettings(config)
+	}
+	//仅在windows系统灰度该特性
+	if runtime.GOOS == "windows" {
+		//这里刷新
+		gameworldsettings, err := ReadGameWorldSettings(config)
+		if err != nil {
+			log.Printf("解析游戏parworldsetting出错,错误%v", err)
+			status.SetsuccessReadGameWorldSettings(false)
+		} else {
+			config.WorldSettings = gameworldsettings
+			log.Println("从游戏parworldsetting.ini解析配置成功.")
+			log.Printf("从游戏parworldsetting.ini解析配置成功.%v", config.WorldSettings)
+			status.SetsuccessReadGameWorldSettings(true)
+			// 将更新后的配置写回文件
+			updatedConfig, err := json.MarshalIndent(config, "", "  ")
 			if err != nil {
-				log.Printf("解析游戏parworldsetting出错,错误%v", err)
-				status.SetsuccessReadGameWorldSettings(false)
-			} else {
-				config.WorldSettings = gameworldsettings
-				log.Println("从游戏parworldsetting.ini解析配置成功.")
-				log.Printf("从游戏parworldsetting.ini解析配置成功.%v", config.WorldSettings)
-				status.SetsuccessReadGameWorldSettings(true)
-				// 将更新后的配置写回文件
-				updatedConfig, err := json.MarshalIndent(config, "", "  ")
-				if err != nil {
-					return err
-				}
+				return err
+			}
 
-				err = os.WriteFile("config.json", updatedConfig, 0644)
-				if err != nil {
-					return err
-				}
+			err = os.WriteFile("config.json", updatedConfig, 0644)
+			if err != nil {
+				return err
 			}
 		}
 	}
-
 	return nil
 }
 
 func ReadGameWorldSettings(config *Config) (*GameWorldSettings, error) {
 	iniPath := filepath.Join(config.GameSavePath, "Config", "WindowsServer", "PalWorldSettings.ini")
 
+	// 检查INI文件是否存在，如果不存在则创建
+	if _, err := os.Stat(iniPath); os.IsNotExist(err) {
+		file, err := os.Create(iniPath)
+		if err != nil {
+			return nil, err
+		}
+		file.Close()
+		fmt.Printf("创建了新的INI文件:%s\n", iniPath)
+	}
+
 	// 加载INI文件
 	cfg, err := ini.Load(iniPath)
 	if err != nil {
 		return nil, err
 	}
+	var settingsString string
 
 	// 获取section
 	sectionName := "/Script/Pal.PalGameWorldSettings"
 	section, err := cfg.GetSection(sectionName)
 	if err != nil {
-		fmt.Printf("未找到配置设置,使用游戏默认配置")
-		return &GameWorldSettings{}, nil
+		fmt.Printf("初次使用，正在为您自动设置游戏默认参数\n")
+		settingsString = "(Difficulty=None,DayTimeSpeedRate=1.000000,NightTimeSpeedRate=1.000000,ExpRate=1.000000,PalCaptureRate=1.000000,PalSpawnNumRate=1.000000,PalDamageRateAttack=1.000000,PalDamageRateDefense=1.000000,PlayerDamageRateAttack=1.000000,PlayerDamageRateDefense=1.000000,PlayerStomachDecreaceRate=1.000000,PlayerStaminaDecreaceRate=1.000000,PlayerAutoHPRegeneRate=1.000000,PlayerAutoHpRegeneRateInSleep=1.000000,PalStomachDecreaceRate=1.000000,PalStaminaDecreaceRate=1.000000,PalAutoHPRegeneRate=1.000000,PalAutoHpRegeneRateInSleep=1.000000,BuildObjectDamageRate=1.000000,BuildObjectDeteriorationDamageRate=1.000000,CollectionDropRate=1.000000,CollectionObjectHpRate=1.000000,CollectionObjectRespawnSpeedRate=1.000000,EnemyDropItemRate=1.000000,DeathPenalty=All,bEnablePlayerToPlayerDamage=False,bEnableFriendlyFire=False,bEnableInvaderEnemy=True,bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=128,BaseCampWorkerMaxNum=15,DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,PalEggDefaultHatchingTime=72.000000,WorkSpeedRate=1.000000,bIsMultiplay=False,bIsPvP=False,bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=True,bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=False,bEnableDefenseOtherGuildPlayer=False,CoopPlayerMaxNum=4,ServerPlayerMaxNum=32,ServerName=\"palgo\",ServerDescription=\"https://github.com/Hoshinonyaruko/palworld-go\",AdminPassword=\"useradmin\",ServerPassword=\"\",PublicPort=8211,PublicIP=\"\",RCONEnabled=True,RCONPort=25575,Region=\"\",bUseAuth=True,BanListURL=\"https://api.palworldgame.com/api/banlist.txt\")"
+		fmt.Printf("已为您生成默认游戏配置，默认控制台地址:http://127.0.0.1:52000\n")
+		fmt.Printf("控制台默认用户名(在ServerName配置):palgo\n")
+		fmt.Printf("控制台默认密码(在AdminPassword配置):useradmin\n")
+		fmt.Printf("登录cookie 24小时有效,若在控制台修改后需立即刷新,删除cookie.db并使用新的用户名密码登录\n")
+		// 解析设置字符串
+		return parseSettings(settingsString), nil
 	}
 
-	var settingsString string
 	// 获取OptionSettings项的值
 	optionSettingsKey, err := section.GetKey("OptionSettings")
 	if err != nil {
-		fmt.Printf("未找到配置设置,使用游戏默认配置")
-		settingsString = "(Difficulty=None,DayTimeSpeedRate=1.000000,NightTimeSpeedRate=1.000000,ExpRate=1.000000,PalCaptureRate=1.000000,PalSpawnNumRate=1.000000,PalDamageRateAttack=1.000000,PalDamageRateDefense=1.000000,PlayerDamageRateAttack=1.000000,PlayerDamageRateDefense=1.000000,PlayerStomachDecreaceRate=1.000000,PlayerStaminaDecreaceRate=1.000000,PlayerAutoHPRegeneRate=1.000000,PlayerAutoHpRegeneRateInSleep=1.000000,PalStomachDecreaceRate=1.000000,PalStaminaDecreaceRate=1.000000,PalAutoHPRegeneRate=1.000000,PalAutoHpRegeneRateInSleep=1.000000,BuildObjectDamageRate=1.000000,BuildObjectDeteriorationDamageRate=1.000000,CollectionDropRate=1.000000,CollectionObjectHpRate=1.000000,CollectionObjectRespawnSpeedRate=1.000000,EnemyDropItemRate=1.000000,DeathPenalty=All,bEnablePlayerToPlayerDamage=False,bEnableFriendlyFire=False,bEnableInvaderEnemy=True,bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=128,BaseCampWorkerMaxNum=15,DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,PalEggDefaultHatchingTime=72.000000,WorkSpeedRate=1.000000,bIsMultiplay=False,bIsPvP=False,bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=True,bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=False,bEnableDefenseOtherGuildPlayer=False,CoopPlayerMaxNum=4,ServerPlayerMaxNum=32,ServerName=\"Default Palworld Server\",ServerDescription=\"\",AdminPassword=\"\",ServerPassword=\"\",PublicPort=8211,PublicIP=\"\",RCONEnabled=False,RCONPort=25575,Region=\"\",bUseAuth=True,BanListURL=\"https://api.palworldgame.com/api/banlist.txt\")"
+		fmt.Printf("未找到配置设置,使用游戏默认配置\n")
+		settingsString = "(Difficulty=None,DayTimeSpeedRate=1.000000,NightTimeSpeedRate=1.000000,ExpRate=1.000000,PalCaptureRate=1.000000,PalSpawnNumRate=1.000000,PalDamageRateAttack=1.000000,PalDamageRateDefense=1.000000,PlayerDamageRateAttack=1.000000,PlayerDamageRateDefense=1.000000,PlayerStomachDecreaceRate=1.000000,PlayerStaminaDecreaceRate=1.000000,PlayerAutoHPRegeneRate=1.000000,PlayerAutoHpRegeneRateInSleep=1.000000,PalStomachDecreaceRate=1.000000,PalStaminaDecreaceRate=1.000000,PalAutoHPRegeneRate=1.000000,PalAutoHpRegeneRateInSleep=1.000000,BuildObjectDamageRate=1.000000,BuildObjectDeteriorationDamageRate=1.000000,CollectionDropRate=1.000000,CollectionObjectHpRate=1.000000,CollectionObjectRespawnSpeedRate=1.000000,EnemyDropItemRate=1.000000,DeathPenalty=All,bEnablePlayerToPlayerDamage=False,bEnableFriendlyFire=False,bEnableInvaderEnemy=True,bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=128,BaseCampWorkerMaxNum=15,DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,PalEggDefaultHatchingTime=72.000000,WorkSpeedRate=1.000000,bIsMultiplay=False,bIsPvP=False,bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=True,bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=False,bEnableDefenseOtherGuildPlayer=False,CoopPlayerMaxNum=4,ServerPlayerMaxNum=32,ServerName=\"palgo\",ServerDescription=\"https://github.com/Hoshinonyaruko/palworld-go\",AdminPassword=\"useradmin\",ServerPassword=\"\",PublicPort=8211,PublicIP=\"\",RCONEnabled=True,RCONPort=25575,Region=\"\",bUseAuth=True,BanListURL=\"https://api.palworldgame.com/api/banlist.txt\")"
+		fmt.Printf("已为您生成默认游戏配置，默认控制台地址:http://127.0.0.1:52000\n")
+		fmt.Printf("控制台默认用户名(在ServerName配置):palgo\n")
+		fmt.Printf("控制台默认密码(在AdminPassword配置):useradmin\n")
+		fmt.Printf("登录cookie 24小时有效,若在控制台修改后需立即刷新,删除cookie.db并使用新的用户名密码登录\n")
 	} else {
 		settingsString = optionSettingsKey.String()
 	}
@@ -384,10 +395,21 @@ func parseSettings(settingsString string) *GameWorldSettings {
 		value := strings.TrimSpace(keyValue[1])
 		log.Printf("加载帕鲁ini,key:%v,value:%v", key, value)
 
+		// 直接移除key中可能存在的前缀'b'
+		key = strings.TrimPrefix(key, "b")
+
+		// 特殊规则处理
+		if key == "RCONEnabled" {
+			key = "RconEnabled"
+		} else if key == "RCONPort" {
+			key = "RconPort"
+		}
+
 		for i := 0; i < sType.NumField(); i++ {
 			field := sType.Field(i)
 			// 将json标签首字母转换为大写
 			jsonTag := firstToUpper(strings.Split(field.Tag.Get("json"), ",")[0]) // 获取json标签的第一部分，忽略后面的选项（如omitempty）
+			//log.Printf("调试,jsonTag:%v,key:%v", jsonTag, key)
 			if jsonTag == key {
 				fieldValue := sValue.Field(i)
 				if fieldValue.CanSet() {
@@ -426,8 +448,13 @@ func settingsToString(settings *GameWorldSettings) string {
 		fieldValue := sValue.Field(i)
 
 		jsonTag := firstToUpper(strings.Split(field.Tag.Get("json"), ",")[0]) // 获取json标签的第一部分，并将首字母转换为大写
-		var valueString string
 
+		// 如果字段是布尔类型，在jsonTag前加上小写的'b'
+		if fieldValue.Kind() == reflect.Bool {
+			jsonTag = "b" + jsonTag
+		}
+
+		var valueString string
 		switch fieldValue.Kind() {
 		case reflect.String:
 			valueString = "\"" + fieldValue.String() + "\"" // 添加双引号

@@ -10,13 +10,20 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorcon/rcon"
 	"github.com/gorilla/websocket"
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/sys"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/disk"
+	"github.com/shirou/gopsutil/host"
+	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/process"
 )
 
 type Client struct {
@@ -72,6 +79,14 @@ func CombinedMiddleware(config config.Config) gin.HandlerFunc {
 			// 处理 /api/save-json 的POST请求
 			if c.Request.URL.Path == "/api/restart" && c.Request.Method == http.MethodPost {
 				HandleRestart(c, config)
+				return
+			}
+			// 进程监控
+			if c.Param("filepath") == "/api/status" && c.Request.Method == http.MethodGet {
+				// 检查操作系统是否既不是 Android 也不是 Darwin (macOS)
+				if runtime.GOOS != "android" && runtime.GOOS != "darwin" {
+					handleSysInfo(c)
+				}
 				return
 			}
 
@@ -155,7 +170,9 @@ func (c *Client) readPump(config config.Config) {
 			break
 		}
 		// 初始化RCON客户端
-		rconClient := NewRconClient(config.Address, config.AdminPassword)
+		address := config.Address + ":" + strconv.Itoa(config.WorldSettings.RconPort)
+		// 初始化RCON客户端
+		rconClient := NewRconClient(address, config.WorldSettings.AdminPassword)
 		if rconClient == nil {
 			log.Println("RCON客户端初始化失败,无法处理webui面板请求,请按教程正确开启rcon和设置服务端admin密码")
 			return
@@ -272,15 +289,15 @@ func restartService(cfg config.Config) {
 			"-NoAsyncLoadingThread",
 			"-UseMultithreadForDS",
 			"RconEnabled=True",
-			fmt.Sprintf("AdminPassword=%s", cfg.AdminPassword),
-			fmt.Sprintf("port=%d", cfg.Port),
-			fmt.Sprintf("players=%d", cfg.Players),
+			fmt.Sprintf("AdminPassword=%s", cfg.WorldSettings.AdminPassword),
+			fmt.Sprintf("port=%d", cfg.WorldSettings.PublicPort),
+			fmt.Sprintf("players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
 		}
 	} else {
 		exePath = filepath.Join(cfg.GamePath, cfg.ProcessName)
 		args = []string{
-			fmt.Sprintf("--port=%d", cfg.Port),
-			fmt.Sprintf("--players=%d", cfg.Players),
+			fmt.Sprintf("--port=%d", cfg.WorldSettings.PublicPort),
+			fmt.Sprintf("--players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
 		}
 	}
 
@@ -396,4 +413,49 @@ func getContentType(path string) string {
 	default:
 		return "text/plain"
 	}
+}
+
+func handleSysInfo(c *gin.Context) {
+	// 获取CPU使用率
+	cpuPercent, _ := cpu.Percent(time.Second, false)
+
+	// 获取内存信息
+	vmStat, _ := mem.VirtualMemory()
+
+	// 获取磁盘使用情况
+	diskStat, _ := disk.Usage("/")
+
+	// 获取系统启动时间
+	bootTime, _ := host.BootTime()
+
+	// 获取当前进程信息
+	proc, _ := process.NewProcess(int32(os.Getpid()))
+	procPercent, _ := proc.CPUPercent()
+	memInfo, _ := proc.MemoryInfo()
+	procStartTime, _ := proc.CreateTime()
+
+	// 构造返回的JSON数据
+	sysInfo := gin.H{
+		"cpu_percent": cpuPercent[0], // CPU使用率
+		"memory": gin.H{
+			"total":     vmStat.Total,       // 总内存
+			"available": vmStat.Available,   // 可用内存
+			"percent":   vmStat.UsedPercent, // 内存使用率
+		},
+		"disk": gin.H{
+			"total":   diskStat.Total,       // 磁盘总容量
+			"free":    diskStat.Free,        // 磁盘剩余空间
+			"percent": diskStat.UsedPercent, // 磁盘使用率
+		},
+		"boot_time": bootTime, // 系统启动时间
+		"process": gin.H{
+			"pid":         proc.Pid,      // 当前进程ID
+			"status":      "running",     // 进程状态，这里假设为运行中
+			"memory_used": memInfo.RSS,   // 进程使用的内存
+			"cpu_percent": procPercent,   // 进程CPU使用率
+			"start_time":  procStartTime, // 进程启动时间
+		},
+	}
+	// 返回JSON数据
+	c.JSON(http.StatusOK, sysInfo)
 }
