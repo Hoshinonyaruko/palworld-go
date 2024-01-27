@@ -55,10 +55,10 @@ func main() {
 	}
 	// 创建一个http.Server实例（主服务器）
 	httpServer := &http.Server{
-		Addr:    "0.0.0.0:52000",
+		Addr:    "0.0.0.0:" + jsonconfig.WebuiPort,
 		Handler: r,
 	}
-	fmt.Printf("webui-api运行在52000端口\n")
+	fmt.Printf("webui-api运行在%v端口\n", jsonconfig.WebuiPort)
 	// 在一个新的goroutine中启动主服务器
 	go func() {
 		// 使用HTTP
@@ -77,10 +77,8 @@ func main() {
 	// 设置内存检查任务
 	memoryCheckTask := NewMemoryCheckTask(jsonconfig, backupTask)
 	go memoryCheckTask.Schedule()
-	fmt.Printf("webui运行在52000端口\n")
-	fmt.Printf("webui运行在52000端口\n")
-	fmt.Printf("webui运行在52000端口\n")
-	fmt.Printf("webui地址:http://127.0.0.1:52000\n")
+	fmt.Printf("webui-api运行在%v端口\n", jsonconfig.WebuiPort)
+	fmt.Printf("webui地址:http://127.0.0.1:%v\n", jsonconfig.WebuiPort)
 	fmt.Printf("开放52000端口后可外网访问,用户名,服务器名(可以中文),初始用户名palgo初始密码useradmin\n")
 	fmt.Printf("为了防止误修改,52000端口仅可在config.json修改\n")
 	if jsonconfig.AutolaunchWebui {

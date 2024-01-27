@@ -304,7 +304,7 @@ func AutoConfigurePaths(config *Config) error {
 		if err != nil {
 			return err
 		}
-			err = os.WriteFile("config.json", updatedConfig, 0644)
+		err = os.WriteFile("config.json", updatedConfig, 0644)
 		if err != nil {
 			return err
 		}
@@ -313,18 +313,18 @@ func AutoConfigurePaths(config *Config) error {
 }
 
 func ReadGameWorldSettings(config *Config) (*GameWorldSettings, error) {
-    var iniPath string
+	var iniPath string
 
-    // 根据操作系统选择不同的路径
-    switch runtime.GOOS {
-    case "windows":
-        iniPath = filepath.Join(config.GameSavePath, "Config", "WindowsServer", "PalWorldSettings.ini")
-    case "linux":
-        iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "PalWorldSettings.ini")
-    default:
-        // 对于其他操作系统，暂时还不知道，按linux处理
-        iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "PalWorldSettings.ini")
-    }
+	// 根据操作系统选择不同的路径
+	switch runtime.GOOS {
+	case "windows":
+		iniPath = filepath.Join(config.GameSavePath, "Config", "WindowsServer", "PalWorldSettings.ini")
+	case "linux":
+		iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "PalWorldSettings.ini")
+	default:
+		// 对于其他操作系统，暂时还不知道，按linux处理
+		iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "PalWorldSettings.ini")
+	}
 
 	// 检查INI文件是否存在，如果不存在则创建
 	if _, err := os.Stat(iniPath); os.IsNotExist(err) {
@@ -489,17 +489,17 @@ func settingsToString(settings *GameWorldSettings) string {
 }
 
 func WriteGameWorldSettings(config *Config, settings *GameWorldSettings) error {
-    var iniPath string
+	var iniPath string
 
-    // 根据操作系统选择不同的路径
-    switch runtime.GOOS {
-    case "windows":
-        iniPath = filepath.Join(config.GameSavePath, "Config", "WindowsServer", "PalWorldSettings.ini")
-    case "linux":
-        iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "PalWorldSettings.ini")
-    default:
-        iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "PalWorldSettings.ini")
-    }
+	// 根据操作系统选择不同的路径
+	switch runtime.GOOS {
+	case "windows":
+		iniPath = filepath.Join(config.GameSavePath, "Config", "WindowsServer", "PalWorldSettings.ini")
+	case "linux":
+		iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "PalWorldSettings.ini")
+	default:
+		iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "PalWorldSettings.ini")
+	}
 
 	// 加载INI文件
 	cfg, err := ini.Load(iniPath)
