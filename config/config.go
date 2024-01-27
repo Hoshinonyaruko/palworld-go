@@ -44,7 +44,7 @@ var defaultConfig = Config{
 	BackupPath:                "",
 	Address:                   "127.0.0.1",
 	ProcessName:               "PalServer",
-	ServerOptions:             []string{"-useperfthreads", " -NoAsyncLoadingThread", "-UseMultithreadForDS"},
+	ServerOptions:             []string{"-useperfthreads", "-NoAsyncLoadingThread", "-UseMultithreadForDS"},
 	CheckInterval:             30,      // 30 秒
 	WebuiPort:                 "52000", // Webui 端口号
 	AutolaunchWebui:           true,
