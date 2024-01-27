@@ -24,6 +24,7 @@ type Config struct {
 	WebuiPort                 string             `json:"webuiPort"`                 // Webui 端口号
 	AutolaunchWebui           bool               `json:"autoLaunchWebui"`           // 自动打开webui
 	ProcessName               string             `json:"processName"`               // 进程名称 PalServer
+	ServerOptions             []string           `json:"serverOptions"`             // 服务器启动参数
 	CheckInterval             int                `json:"checkInterval"`             // 进程存活检查时间（秒）
 	BackupInterval            int                `json:"backupInterval"`            // 备份间隔（秒）
 	MemoryCheckInterval       int                `json:"memoryCheckInterval"`       // 内存占用检测时间（秒）
@@ -43,6 +44,7 @@ var defaultConfig = Config{
 	BackupPath:                "",
 	Address:                   "127.0.0.1",
 	ProcessName:               "PalServer",
+	ServerOptions:             []string{"-useperfthreads"," -NoAsyncLoadingThread", "-UseMultithreadForDS"},
 	CheckInterval:             30,      // 30 秒
 	WebuiPort:                 "52000", // Webui 端口号
 	AutolaunchWebui:           true,
@@ -187,6 +189,12 @@ func checkAndSetDefaults(config *Config) bool {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		defaultField := reflect.ValueOf(defaultConfig).Field(i)
+
+		// 跳过布尔类型的字段
+		if fieldType.Kind() == reflect.Bool {
+			continue
+		}
+		
 		fieldName := typ.Field(i).Name
 
 		// 特殊处理MemoryCleanupInterval字段
