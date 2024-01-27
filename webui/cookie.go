@@ -17,32 +17,32 @@ const (
 	ExpirationHours = 24 // Cookie 有效期为24小时
 )
 
-var db *bolt.DB
+var dbcookie *bolt.DB
 var ErrCookieNotFound = errors.New("cookie not found")
 var ErrCookieExpired = errors.New("cookie has expired")
 
 func InitializeDB() {
 	var err error
-	db, err = bolt.Open(DBName, 0600, nil)
+	dbcookie, err = bolt.Open(DBName, 0600, nil)
 	if err != nil {
 		log.Fatalf("Error opening DB: %v", err)
 	}
 
-	db.Update(func(tx *bolt.Tx) error {
+	dbcookie.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte(CookieBucket))
 		return err
 	})
 }
 
 func CloseDB() {
-	db.Close()
+	dbcookie.Close()
 }
 
 func GenerateCookie() (string, error) {
 	cookie := uuid.New().String()
 	expiration := time.Now().Add(ExpirationHours * time.Hour).Unix()
 
-	err := db.Update(func(tx *bolt.Tx) error {
+	err := dbcookie.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(CookieBucket))
 		if err := bucket.Put([]byte(cookie), intToBytes(expiration)); err != nil {
 			return err
@@ -59,7 +59,7 @@ func GenerateCookie() (string, error) {
 
 func ValidateCookie(cookie string) (bool, error) {
 	isValid := false
-	err := db.View(func(tx *bolt.Tx) error {
+	err := dbcookie.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(CookieBucket))
 		expBytes := bucket.Get([]byte(cookie))
 		if expBytes == nil {

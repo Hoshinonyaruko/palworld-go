@@ -187,6 +187,13 @@ func checkAndSetDefaults(config *Config) bool {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		defaultField := reflect.ValueOf(defaultConfig).Field(i)
+		fieldType := field.Type()
+
+		// 跳过布尔类型的字段
+		if fieldType.Kind() == reflect.Bool {
+			continue
+		}
+
 		fieldName := typ.Field(i).Name
 
 		// 特殊处理MemoryCleanupInterval字段

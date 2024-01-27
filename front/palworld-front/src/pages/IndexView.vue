@@ -8,6 +8,7 @@
         <q-tab name="guard" label="守护配置修改" />
         <q-tab name="server" label="服务端配置修改" />
         <q-tab name="command" label="服务器指令" />
+        <q-tab name="player-manage" label="玩家管理" />
         <q-tab name="advanced" label="高级配置修改" @click="redirectToSav" />
         <q-tab name="server-check" label="服务器检测" />
       </q-tabs>
@@ -35,7 +36,25 @@
           <q-input
             filled
             v-model="config.maintenanceWarningMessage"
-            label="维护警告消息"
+            label="维护公告消息(英文)"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.gamePath"
+            label="游戏服务端exe路径"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.gameSavePath"
+            label="游戏存档路径"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.backupPath"
+            label="游戏存档备份存放路径"
             class="q-my-md"
           />
 
@@ -56,6 +75,13 @@
           />
           <q-input
             filled
+            v-model.number="config.checkInterval"
+            type="number"
+            label="进程存活检测时间（秒）"
+            class="q-my-md"
+          />
+          <q-input
+            filled
             v-model.number="config.memoryCleanupInterval"
             type="number"
             label="内存清理时间间隔（秒）"
@@ -66,6 +92,13 @@
             v-model.number="config.messageBroadcastInterval"
             type="number"
             label="消息广播周期（秒）"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.memoryUsageThreshold"
+            type="number"
+            label="服务端重启内存阈值(百分比)"
             class="q-my-md"
           />
           <q-input
@@ -565,6 +598,10 @@
           </div>
         </div>
       </q-page>
+      <!-- 玩家管理组件 -->
+      <q-page padding v-if="tab === 'player-manage'">
+        <player-manage />
+      </q-page>
       <q-page padding v-if="tab === 'server-check'">
         <div class="text-h6">服务器检测页面</div>
         <running-process-status
@@ -581,6 +618,7 @@ import { ref, onMounted, onUnmounted, onBeforeUnmount, watch } from 'vue';
 import axios from 'axios';
 import { QPage, QCard, QCardSection } from 'quasar';
 import RunningProcessStatus from 'components/RunningProcessStatus.vue';
+import PlayerManage from 'components/PlayerManage.vue';
 
 //给components传递数据
 const props = defineProps({

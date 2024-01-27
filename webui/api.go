@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -19,12 +20,21 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/sys"
+	"github.com/hoshinonyaruko/palworld-go/tool"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/process"
+	"go.etcd.io/bbolt"
 )
+
+type Player struct {
+	Name       string    `json:"name"`
+	SteamID    string    `json:"steamid"`
+	PlayerUID  string    `json:"playeruid"`
+	LastOnline time.Time `json:"last_online"`
+}
 
 type Client struct {
 	conn *websocket.Conn
@@ -45,8 +55,27 @@ var content embed.FS
 //go:embed dist2/assets/*
 var content2 embed.FS
 
+func InitDB() *bbolt.DB {
+	db, err := bbolt.Open("players.db", 0600, &bbolt.Options{Timeout: 1 * time.Second})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// 创建bucket
+	err = db.Update(func(tx *bbolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("players"))
+		return err
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return db
+}
+
 // NewCombinedMiddleware 创建并返回一个带有依赖的中间件闭包
-func CombinedMiddleware(config config.Config) gin.HandlerFunc {
+func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api") {
 
@@ -87,6 +116,16 @@ func CombinedMiddleware(config config.Config) gin.HandlerFunc {
 				if runtime.GOOS != "android" && runtime.GOOS != "darwin" {
 					handleSysInfo(c)
 				}
+				return
+			}
+			// 处理 /player 的GET请求
+			if c.Request.URL.Path == "/api/player" && c.Request.Method == http.MethodGet {
+				listPlayer(c, config, db)
+				return
+			}
+			// 处理 /kickorban 的GET请求
+			if c.Request.URL.Path == "/api/kickorban" && c.Request.Method == http.MethodPost {
+				handleKickOrBan(c, config)
 				return
 			}
 
@@ -458,4 +497,95 @@ func handleSysInfo(c *gin.Context) {
 	}
 	// 返回JSON数据
 	c.JSON(http.StatusOK, sysInfo)
+}
+
+func listPlayer(c *gin.Context, config config.Config, db *bbolt.DB) {
+	update, _ := c.GetQuery("update")
+	var currentPlayers []map[string]string
+	if update == "true" {
+		getCurrentPlayers, err := tool.ShowPlayers(config)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"error": err.Error()})
+			return
+		}
+		tool.UpdatePlayerData(db, getCurrentPlayers)
+		currentPlayers = getCurrentPlayers
+	}
+	var players []Player
+	err := db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("players"))
+		return b.ForEach(func(k, v []byte) error {
+			var player Player
+			if err := json.Unmarshal(v, &player); err != nil {
+				return err
+			}
+			players = append(players, player)
+			return nil
+		})
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 按 LastOnline 倒序排序
+	sort.Slice(players, func(i, j int) bool {
+		return players[i].LastOnline.After(players[j].LastOnline)
+	})
+
+	// 构建包含所有玩家信息的列表
+	allPlayers := make([]map[string]interface{}, 0)
+	currentLocalTime := time.Now()
+	for _, player := range players {
+		diff := currentLocalTime.Sub(player.LastOnline)
+		online := false
+		if diff < 5*time.Minute {
+			online = true
+		}
+		lastOnlineTimeStr := player.LastOnline.Format("2006-01-02 15:04:05")
+		allPlayers = append(allPlayers, map[string]interface{}{
+			"name":        player.Name,
+			"steamid":     player.SteamID,
+			"playeruid":   player.PlayerUID,
+			"last_online": lastOnlineTimeStr,
+			"online":      online,
+		})
+	}
+
+	// 标记当前在线的玩家
+	if update == "true" {
+		for idx, player := range allPlayers {
+			for _, currentPlayer := range currentPlayers {
+				if player["name"] == currentPlayer["name"] {
+					allPlayers[idx]["online"] = true
+					break
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, allPlayers)
+}
+
+// Handler for /api/kickorban
+func handleKickOrBan(c *gin.Context, config config.Config) {
+	steamID := c.Query("steamid")
+	actionType := c.Query("type")
+
+	var err error
+	if actionType == "kick" {
+		err = tool.KickPlayer(config, steamID)
+	} else if actionType == "ban" {
+		err = tool.BanPlayer(config, steamID)
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid type"})
+		return
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Success"})
 }
