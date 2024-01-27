@@ -44,7 +44,7 @@ var defaultConfig = Config{
 	BackupPath:                "",
 	Address:                   "127.0.0.1",
 	ProcessName:               "PalServer",
-	ServerOptions:             []string{"-useperfthreads"," -NoAsyncLoadingThread", "-UseMultithreadForDS"},
+	ServerOptions:             []string{"-useperfthreads", "-NoAsyncLoadingThread", "-UseMultithreadForDS"},
 	CheckInterval:             30,      // 30 秒
 	WebuiPort:                 "52000", // Webui 端口号
 	AutolaunchWebui:           true,
@@ -189,12 +189,13 @@ func checkAndSetDefaults(config *Config) bool {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		defaultField := reflect.ValueOf(defaultConfig).Field(i)
+		fieldType := field.Type()
 
 		// 跳过布尔类型的字段
 		if fieldType.Kind() == reflect.Bool {
 			continue
 		}
-		
+
 		fieldName := typ.Field(i).Name
 
 		// 特殊处理MemoryCleanupInterval字段

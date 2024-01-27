@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -19,12 +20,21 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/sys"
+	"github.com/hoshinonyaruko/palworld-go/tool"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/process"
+	"go.etcd.io/bbolt"
 )
+
+type Player struct {
+	Name       string    `json:"name"`
+	SteamID    string    `json:"steamid"`
+	PlayerUID  string    `json:"playeruid"`
+	LastOnline time.Time `json:"last_online"`
+}
 
 type Client struct {
 	conn *websocket.Conn
@@ -36,6 +46,12 @@ type RconClient struct {
 	Conn *rcon.Conn
 }
 
+type KickOrBanRequest struct {
+	PlayerUID string `json:"playeruid"`
+	SteamID   string `json:"steamid"`
+	Type      string `json:"type"`
+}
+
 //go:embed dist/*
 //go:embed dist/icons/*
 //go:embed dist/assets/*
@@ -45,8 +61,27 @@ var content embed.FS
 //go:embed dist2/assets/*
 var content2 embed.FS
 
+func InitDB() *bbolt.DB {
+	db, err := bbolt.Open("players.db", 0600, &bbolt.Options{Timeout: 1 * time.Second})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// 创建bucket
+	err = db.Update(func(tx *bbolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("players"))
+		return err
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return db
+}
+
 // NewCombinedMiddleware 创建并返回一个带有依赖的中间件闭包
-func CombinedMiddleware(config config.Config) gin.HandlerFunc {
+func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api") {
 
@@ -87,6 +122,16 @@ func CombinedMiddleware(config config.Config) gin.HandlerFunc {
 				if runtime.GOOS != "android" && runtime.GOOS != "darwin" {
 					handleSysInfo(c)
 				}
+				return
+			}
+			// 处理 /player 的GET请求
+			if c.Request.URL.Path == "/api/player" && c.Request.Method == http.MethodGet {
+				listPlayer(c, config, db)
+				return
+			}
+			// 处理 /kickorban 的GET请求
+			if c.Request.URL.Path == "/api/kickorban" && c.Request.Method == http.MethodPost {
+				handleKickOrBan(c, config, db)
 				return
 			}
 
@@ -278,33 +323,28 @@ func restartService(cfg config.Config) {
 		// 可以选择在此处返回，也可以继续尝试启动新进程
 	}
 
-	// 构建启动命令
+	// 构建游戏服务器的启动命令
 	var exePath string
 	var args []string
 
+	// 构造游戏启动参数
+	//gameArgs := constructGameLaunchArguments(s.Config.WorldSettings)
+
 	if runtime.GOOS == "windows" {
 		exePath = filepath.Join(cfg.GamePath, cfg.ProcessName+".exe")
-		args = []string{
-			"-useperfthreads",
-			"-NoAsyncLoadingThread",
-			"-UseMultithreadForDS",
-			"RconEnabled=True",
-			fmt.Sprintf("-AdminPassword=%s", cfg.WorldSettings.AdminPassword),
-			fmt.Sprintf("-port=%d", cfg.WorldSettings.PublicPort),
-			fmt.Sprintf("-players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
-		}
 	} else {
-		exePath = filepath.Join(cfg.GamePath, cfg.ProcessName)
-		args = []string{
-			fmt.Sprintf("--port=%d", cfg.WorldSettings.PublicPort),
-			fmt.Sprintf("--players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
-		}
+		exePath = filepath.Join(cfg.GamePath, cfg.ProcessName+".sh")
 	}
 
-	log.Printf("webui重启服务端,启动命令: %s %s", exePath, strings.Join(args, " "))
-	cmd := exec.Command(exePath, args...)
-	cmd.Dir = cfg.GamePath
+	args = cfg.ServerOptions
+	//args = append(args, gameArgs...) // 添加GameWorldSettings参数
 
+	// 执行启动命令
+	log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))
+	cmd := exec.Command(exePath, args...)
+	cmd.Dir = cfg.GamePath // 设置工作目录为游戏路径
+
+	// 启动进程
 	if err := cmd.Start(); err != nil {
 		log.Printf("Failed to restart game server: %v", err)
 	} else {
@@ -458,4 +498,102 @@ func handleSysInfo(c *gin.Context) {
 	}
 	// 返回JSON数据
 	c.JSON(http.StatusOK, sysInfo)
+}
+
+func listPlayer(c *gin.Context, config config.Config, db *bbolt.DB) {
+	update, _ := c.GetQuery("update")
+
+	var currentPlayersMap map[string]bool
+	if update == "true" {
+		getCurrentPlayers, err := tool.ShowPlayers(config)
+		if err != nil {
+			// Log the error instead of returning it
+			log.Println("Error fetching current players:", err)
+
+			// Initialize currentPlayersMap as empty if fetching online players fails
+			currentPlayersMap = make(map[string]bool)
+		} else {
+			tool.UpdatePlayerData(db, getCurrentPlayers)
+
+			// Create a map for quick lookup
+			currentPlayersMap = make(map[string]bool)
+			for _, player := range getCurrentPlayers {
+				currentPlayersMap[player["name"]] = true
+			}
+		}
+	}
+
+	var players []Player
+	err := db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("players"))
+		return b.ForEach(func(k, v []byte) error {
+			var player Player
+			if err := json.Unmarshal(v, &player); err != nil {
+				return err
+			}
+			players = append(players, player)
+			return nil
+		})
+	})
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Sort players
+	sort.Slice(players, func(i, j int) bool {
+		return players[i].LastOnline.After(players[j].LastOnline)
+	})
+
+	currentLocalTime := time.Now()
+	allPlayers := make([]map[string]interface{}, len(players))
+
+	for i, player := range players {
+		diff := currentLocalTime.Sub(player.LastOnline)
+		online := diff < 3*time.Minute
+
+		if update == "true" {
+			// Check if the player is in the currentPlayersMap for online status
+			if _, exists := currentPlayersMap[player.Name]; exists {
+				online = true
+			}
+		}
+
+		allPlayers[i] = map[string]interface{}{
+			"name":        player.Name,
+			"steamid":     player.SteamID,
+			"playeruid":   player.PlayerUID,
+			"last_online": player.LastOnline.Format("2006-01-02 15:04:05"),
+			"online":      online,
+		}
+	}
+
+	c.JSON(http.StatusOK, allPlayers)
+}
+
+// Handler for /api/kickorban
+func handleKickOrBan(c *gin.Context, config config.Config, db *bbolt.DB) {
+	var req KickOrBanRequest
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	var err error
+	if req.Type == "kick" {
+		err = tool.KickPlayer(config, req.SteamID)
+	} else if req.Type == "ban" {
+		err = tool.BanPlayer(config, req.SteamID)
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid type"})
+		return
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	tool.UpdateLastOnlineForPlayer(db, req.SteamID)
+	c.JSON(http.StatusOK, gin.H{"message": "Success"})
 }

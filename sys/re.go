@@ -1,7 +1,9 @@
 package sys
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +17,10 @@ import (
 // Restarter is the interface that wraps the Restart method.
 type Restarter interface {
 	Restart(executableName string) error
+}
+
+type Tag struct {
+	Name string `json:"name"`
 }
 
 // findIFrameSrc 遍历HTML节点以找到iframe标签的src属性
@@ -59,6 +65,32 @@ func setConsoleTitle(title string) error {
 		fmt.Fprintf(os.Stderr, "setConsoleTitle not implemented for %s\n", runtime.GOOS)
 	}
 	return nil
+}
+
+func GetLatestTag(repo string) (string, error) {
+	url := fmt.Sprintf("https://gitee.com/api/v5/repos/%s/tags", repo)
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var tags []Tag
+	err = json.Unmarshal(body, &tags)
+	if err != nil {
+		return "", err
+	}
+
+	if len(tags) > 0 {
+		return tags[len(tags)-1].Name, nil
+	}
+
+	return "", fmt.Errorf("no tags found")
 }
 
 // SetTitle sets the window title to "gensokyo-kook © 2023 - [Year] Hoshinonyaruko".
