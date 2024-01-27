@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/hoshinonyaruko/palworld-go/config"
@@ -30,7 +31,8 @@ func (task *palworldBroadcast) Schedule() {
 func (task *palworldBroadcast) RunpalworldBroadcast() {
 	log.Println("准备进行全服推送...由于帕鲁暂未支持中文，仅支持英文")
 	// 初始化RCON客户端
-	rconClient := NewRconClient(task.Config.Address, task.Config.AdminPassword, task.BackupTask)
+	address := task.Config.Address + ":" + strconv.Itoa(task.Config.WorldSettings.RconPort)
+	rconClient := NewRconClient(address, task.Config.WorldSettings.AdminPassword, task.BackupTask)
 	if rconClient == nil {
 		log.Println("RCON客户端初始化失败,无法进行定期推送,请按教程正确开启rcon和设置服务端admin密码")
 		return
