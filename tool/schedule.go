@@ -3,6 +3,7 @@ package tool
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -19,7 +20,7 @@ type Player struct {
 }
 
 func ScheduleTask(db *bbolt.DB, config config.Config) {
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(3 * time.Minute)
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -34,12 +35,15 @@ func ScheduleTask(db *bbolt.DB, config config.Config) {
 }
 
 func UpdatePlayerData(db *bbolt.DB, playersData []map[string]string) {
-	err := db.Update(func(tx *bbolt.Tx) error {
+	err := db.Batch(func(tx *bbolt.Tx) error { // Use Batch for better performance
 		b := tx.Bucket([]byte("players"))
 		for _, playerData := range playersData {
 			if playerData["name"] == "<null/err>" {
 				continue
 			}
+
+			// Check if player exists and update only if necessary
+			needUpdate := false
 			existingPlayerData := b.Get([]byte(playerData["name"]))
 			var player Player
 			if existingPlayerData != nil {
@@ -47,13 +51,16 @@ func UpdatePlayerData(db *bbolt.DB, playersData []map[string]string) {
 					return err
 				}
 
-				if player.SteamID == "<null/err>" || strings.Contains(player.SteamID, "000000") {
+				// Update fields only if they are different
+				if player.SteamID != playerData["steamid"] && (player.SteamID == "<null/err>" || strings.Contains(player.SteamID, "000000")) {
 					player.SteamID = playerData["steamid"]
+					needUpdate = true
 				}
-				if player.PlayerUID == "<null/err>" || strings.Contains(player.PlayerUID, "000000") {
+				if player.PlayerUID != playerData["playeruid"] && (player.PlayerUID == "<null/err>" || strings.Contains(player.PlayerUID, "000000")) {
 					player.PlayerUID = playerData["playeruid"]
+					needUpdate = true
 				}
-				player.LastOnline = time.Now()
+				player.LastOnline = time.Now() // This might be always updated depending on your business logic
 			} else {
 				player = Player{
 					Name:       playerData["name"],
@@ -61,14 +68,17 @@ func UpdatePlayerData(db *bbolt.DB, playersData []map[string]string) {
 					PlayerUID:  playerData["playeruid"],
 					LastOnline: time.Now(),
 				}
+				needUpdate = true
 			}
 
-			serializedPlayer, err := json.Marshal(player)
-			if err != nil {
-				return err
-			}
-			if err := b.Put([]byte(player.Name), serializedPlayer); err != nil {
-				return err
+			if needUpdate {
+				serializedPlayer, err := json.Marshal(player)
+				if err != nil {
+					return err
+				}
+				if err := b.Put([]byte(player.Name), serializedPlayer); err != nil {
+					return err
+				}
 			}
 		}
 		return nil
@@ -77,4 +87,37 @@ func UpdatePlayerData(db *bbolt.DB, playersData []map[string]string) {
 	if err != nil {
 		log.Println("Error updating player:", err)
 	}
+}
+
+func UpdateLastOnlineForPlayer(db *bbolt.DB, steamID string) error {
+	tenMinutesAgo := time.Now().Add(-10 * time.Minute)
+
+	return db.Update(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("players"))
+
+		// Iterate over all players to find the one with the given SteamID
+		cursor := b.Cursor()
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
+			var player Player
+			if err := json.Unmarshal(v, &player); err != nil {
+				return err
+			}
+
+			if player.SteamID == steamID {
+				// Update the LastOnline field
+				player.LastOnline = tenMinutesAgo
+
+				// Serialize the updated player data
+				updatedPlayerData, err := json.Marshal(player)
+				if err != nil {
+					return err
+				}
+
+				// Save the updated player data back to the database
+				return b.Put(k, updatedPlayerData)
+			}
+		}
+
+		return fmt.Errorf("player with SteamID %s not found", steamID)
+	})
 }

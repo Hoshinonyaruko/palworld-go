@@ -138,6 +138,36 @@
             />
           </div>
 
+          <!-- 数组类型的配置项：启动参数数组 -->
+          <div class="q-my-md">
+            <div class="text-h6">服务端启动参数</div>
+            <div
+              v-for="(message, index) in config.serverOptions"
+              :key="index"
+              class="q-mb-sm"
+            >
+              <q-input
+                filled
+                v-model="config.serverOptions[index]"
+                label="启动参数"
+                dense
+              />
+              <q-btn
+                flat
+                icon="delete"
+                @click="removeMessageServerOptions(index)"
+                class="q-ml-md"
+              />
+            </div>
+            <q-btn
+              flat
+              icon="add"
+              @click="addMessageServerOptions"
+              label="添加参数"
+              class="q-mt-md"
+            />
+          </div>
+
           <!-- 保存按钮 -->
           <q-btn
             color="primary"
@@ -673,6 +703,16 @@ const addMessage = () => {
 // 从数组中移除一个消息
 const removeMessage = (index) => {
   config.value.regularMessages.splice(index, 1);
+};
+
+// 增加一个消息到数组
+const addMessageServerOptions = () => {
+  config.value.ServerOptions.push('');
+};
+
+// 从数组中移除一个消息
+const removeMessageServerOptions = (index) => {
+  config.value.ServerOptions.splice(index, 1);
 };
 
 onMounted(async () => {

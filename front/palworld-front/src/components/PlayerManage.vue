@@ -83,7 +83,7 @@ const $q = useQuasar();
 const loadPlayers = async () => {
   loading.value = true;
   try {
-    const response = await axios.get('/api/player');
+    const response = await axios.get('/api/player?update=true');
     players.value = response.data;
   } catch (error) {
     console.error('API 请求失败', error);

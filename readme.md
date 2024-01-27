@@ -41,7 +41,7 @@ webui默认地址:http://127.0.0.1:52000
 
 控制台默认用户名 palgo 默认密码 useradmin
 
-用户名即帕鲁服务器名，可中文 密码即rcon密码 纯英文
+用户名即帕鲁服务器名（serverName），可中文 密码即rcon密码（adminPassword） 纯英文
 
 图片介绍
 

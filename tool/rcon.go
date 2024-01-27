@@ -51,29 +51,32 @@ func ShowPlayers(config config.Config) ([]map[string]string, error) {
 		return nil, err
 	}
 
+	//第一行指令标题 然后才是内容
 	lines := strings.Split(response, "\n")
+	if len(lines) < 2 {
+		return nil, fmt.Errorf("invalid response format")
+	}
+
 	titles := strings.Split(lines[0], ",")
-	result := make([]map[string]string, 0)
+	result := make([]map[string]string, 0, len(lines)-1)
 	for _, line := range lines[1:] {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
+
 		fields := strings.Split(line, ",")
-		dataMap := make(map[string]string)
+		dataMap := make(map[string]string, len(titles))
 		for i, title := range titles {
 			value := "<null/err>"
-			if i < len(fields) {
+			if i < len(fields) && !strings.Contains(fields[i], "\u0000") {
 				value = fields[i]
-				if strings.Contains(value, "\u0000") {
-					// Usually \u0000 is an error
-					value = "<null/err>"
-				}
 			}
 			dataMap[title] = value
 		}
 		result = append(result, dataMap)
 	}
+
 	return result, nil
 }
 
