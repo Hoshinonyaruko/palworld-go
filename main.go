@@ -14,11 +14,17 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.etcd.io/bbolt"
 
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/sys"
+	"github.com/hoshinonyaruko/palworld-go/tool"
 	"github.com/hoshinonyaruko/palworld-go/webui"
 )
+
+var version string
+
+var db *bbolt.DB
 
 //go:embed RAMMap64.exe
 var rammapFS embed.FS
@@ -43,15 +49,23 @@ func main() {
 	}
 	//cookie数据库
 	webui.InitializeDB()
+	//玩家数据库
+	db = webui.InitDB()
+	//启动周期任务
+	go tool.ScheduleTask(db, jsonconfig)
+	if db == nil {
+		log.Fatal("Failed to initialize database")
+	}
+	defer db.Close()
 	r := gin.Default()
 	//webui和它的api
 	webuiGroup := r.Group("/")
 	{
-		webuiGroup.GET("/*filepath", webui.CombinedMiddleware(jsonconfig))
-		webuiGroup.POST("/*filepath", webui.CombinedMiddleware(jsonconfig))
-		webuiGroup.PUT("/*filepath", webui.CombinedMiddleware(jsonconfig))
-		webuiGroup.DELETE("/*filepath", webui.CombinedMiddleware(jsonconfig))
-		webuiGroup.PATCH("/*filepath", webui.CombinedMiddleware(jsonconfig))
+		webuiGroup.GET("/*filepath", webui.CombinedMiddleware(jsonconfig, db))
+		webuiGroup.POST("/*filepath", webui.CombinedMiddleware(jsonconfig, db))
+		webuiGroup.PUT("/*filepath", webui.CombinedMiddleware(jsonconfig, db))
+		webuiGroup.DELETE("/*filepath", webui.CombinedMiddleware(jsonconfig, db))
+		webuiGroup.PATCH("/*filepath", webui.CombinedMiddleware(jsonconfig, db))
 	}
 	// 创建一个http.Server实例（主服务器）
 	httpServer := &http.Server{
@@ -84,6 +98,14 @@ func main() {
 	if jsonconfig.AutolaunchWebui {
 		OpenWebUI(&jsonconfig)
 	}
+
+	latestTag, err := sys.GetLatestTag("sanaefox/palworld-go")
+	if err != nil {
+		fmt.Println("Error fetching latest tag:", err)
+		return
+	}
+
+	fmt.Printf("当前版本: %s 最新版本: %s \n", version, latestTag)
 
 	if runtime.GOOS == "windows" {
 		if jsonconfig.MemoryCleanupInterval != 0 {
