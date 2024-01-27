@@ -22,6 +22,7 @@ type Config struct {
 	BackupPath                string             `json:"backupPath"`                // 备份路径
 	Address                   string             `json:"address"`                   // 服务器 IP 地址
 	WebuiPort                 string             `json:"webuiPort"`                 // Webui 端口号
+	AutolaunchWebui           bool               `json:"autoLaunchWebui"`           // 自动打开webui
 	ProcessName               string             `json:"processName"`               // 进程名称 PalServer
 	CheckInterval             int                `json:"checkInterval"`             // 进程存活检查时间（秒）
 	BackupInterval            int                `json:"backupInterval"`            // 备份间隔（秒）
@@ -42,8 +43,9 @@ var defaultConfig = Config{
 	BackupPath:                "",
 	Address:                   "127.0.0.1",
 	ProcessName:               "PalServer",
-	CheckInterval:             30,                                                          // 30 秒
-	WebuiPort:                 "52000",                                                     // Webui 端口号
+	CheckInterval:             30,      // 30 秒
+	WebuiPort:                 "52000", // Webui 端口号
+	AutolaunchWebui:           true,
 	BackupInterval:            1800,                                                        // 30 分钟
 	MemoryCheckInterval:       30,                                                          // 30 秒
 	MemoryUsageThreshold:      80,                                                          // 80%
@@ -449,8 +451,13 @@ func settingsToString(settings *GameWorldSettings) string {
 
 		jsonTag := firstToUpper(strings.Split(field.Tag.Get("json"), ",")[0]) // 获取json标签的第一部分，并将首字母转换为大写
 
-		// 如果字段是布尔类型，在jsonTag前加上小写的'b'
-		if fieldValue.Kind() == reflect.Bool {
+		// 特殊规则处理
+		if jsonTag == "RconEnabled" {
+			jsonTag = "RCONEnabled"
+		} else if jsonTag == "RconPort" {
+			jsonTag = "RCONPort"
+		} else if fieldValue.Kind() == reflect.Bool {
+			// 如果字段是布尔类型，并且不是RconEnabled，在jsonTag前加上小写的'b'
 			jsonTag = "b" + jsonTag
 		}
 
