@@ -42,7 +42,7 @@ func (s *Supervisor) isServiceRunning() bool {
 		cmd = exec.Command("tasklist")
 	} else {
 		// Unix/Linux，假设'pgrep'可用
-		cmd = exec.Command("pgrep", "-f", s.Config.ProcessName)
+		cmd = exec.Command("pgrep", "-f", s.Config.ProcessName+".sh")
 	}
 
 	var out bytes.Buffer
