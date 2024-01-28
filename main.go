@@ -182,7 +182,6 @@ func main() {
 	latestTag, err := sys.GetLatestTag("sanaefox/palworld-go")
 	if err != nil {
 		fmt.Println("Error fetching latest tag:", err)
-		return
 	}
 
 	fmt.Printf("当前版本: %s 最新版本: %s \n", version, latestTag)
