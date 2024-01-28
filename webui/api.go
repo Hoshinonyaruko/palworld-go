@@ -699,6 +699,10 @@ func handleGetSavelist(c *gin.Context, config config.Config) {
 	// 获取保存路径
 	savePath := config.BackupPath
 
+	if savePath == "" && runtime.GOOS != "windows" {
+		savePath = "."
+	}
+
 	// 正则表达式匹配特定的日期时间格式
 	regex, err := regexp.Compile(`^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$`)
 	if err != nil {
