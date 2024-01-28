@@ -15,7 +15,7 @@
     </q-header>
 
     <!-- 主页面内容区 -->
-    <q-page-container class="custom-flex-fit fit column no-wrap" style="max-width: 980px;">
+    <q-page-container class="custom-flex-fit fit column no-wrap" style="max-width: 980px;margin-left: auto;margin-right: auto;">
       <q-page padding v-if="tab === 'guard'">
         <!-- 守护配置修改页面内容 -->
         <div class="q-gutter-xs q-mt-md">

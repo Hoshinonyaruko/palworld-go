@@ -51,8 +51,8 @@ var defaultConfig = Config{
 	WebuiPort:                 "52000", // Webui 端口号
 	AutolaunchWebui:           true,
 	BackupInterval:            1800,                                                        // 30 分钟
-	MemoryCheckInterval:       60,                                                          // 30 秒
-	MemoryUsageThreshold:      80,                                                          // 80%
+	MemoryCheckInterval:       60,                                                          // 60 秒
+	MemoryUsageThreshold:      90,                                                          // 90%
 	TotalMemoryGB:             16,                                                          //16G
 	MemoryCleanupInterval:     0,                                                           // 内存清理时间间隔，设为半小时（1800秒）0代表不清理
 	RegularMessages:           []string{"", ""},                                            // 默认的定期推送消息数组，初始可为空
