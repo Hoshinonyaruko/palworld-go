@@ -86,6 +86,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Generate unique tag name with timestamp
+        id: unique_tag
+        run: echo "::set-output name=tag::$(date +'%Y%m%d%H%M%S')"
+        
       - name: Download all artifacts
         uses: actions/download-artifact@v2
         with:
@@ -97,8 +101,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
+          tag_name: ${{ steps.unique_tag.outputs.tag }}
+          release_name: Release ${{ steps.unique_tag.outputs.tag }}
           draft: false
 
       - name: Upload Release Assets
