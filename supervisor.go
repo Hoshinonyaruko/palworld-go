@@ -71,12 +71,23 @@ func (s *Supervisor) restartService() {
 
 	if runtime.GOOS == "windows" {
 		exePath = filepath.Join(s.Config.GamePath, s.Config.ProcessName+".exe")
+		args = []string{
+			"-RconEnabled=True",
+			fmt.Sprintf("-AdminPassword=%s", s.Config.WorldSettings.AdminPassword),
+			fmt.Sprintf("-port=%d", s.Config.WorldSettings.PublicPort),
+			fmt.Sprintf("-players=%d", s.Config.WorldSettings.ServerPlayerMaxNum),
+		}
 	} else {
 		exePath = filepath.Join(s.Config.GamePath, s.Config.ProcessName+".sh")
+		args = []string{
+			"--RconEnabled=True",
+			fmt.Sprintf("--AdminPassword=%s", s.Config.WorldSettings.AdminPassword),
+			fmt.Sprintf("--port=%d", s.Config.WorldSettings.PublicPort),
+			fmt.Sprintf("--players=%d", s.Config.WorldSettings.ServerPlayerMaxNum),
+		}
 	}
 
-	args = s.Config.ServerOptions
-	//args = append(args, gameArgs...) // 添加GameWorldSettings参数
+	args = append(args, s.Config.ServerOptions...) // 添加GameWorldSettings参数
 
 	// 执行启动命令
 	log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))

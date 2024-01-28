@@ -9,8 +9,9 @@
         <q-tab name="server" label="服务端配置修改" />
         <q-tab name="command" label="服务器指令" />
         <q-tab name="player-manage" label="玩家管理" />
-        <q-tab name="advanced" label="高级配置修改" @click="redirectToSav" />
-        <q-tab name="server-check" label="服务器检测" />
+        <q-tab name="advanced" label="SAV修改" @click="redirectToSav" />
+        <q-tab name="server-check" label="主机管理" />
+        <q-tab name="save-manage" label="存档管理" />
       </q-tabs>
     </q-header>
 
@@ -31,6 +32,11 @@
           <q-toggle
             v-model="config.autoLaunchWebui"
             label="自动打开 Web UI"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.usehttps"
+            label="webui强制https(解锁玩家管理复制按钮)"
             class="q-my-md"
           />
           <q-input
@@ -283,6 +289,13 @@
           />
 
           <!-- 数字输入框 -->
+          <q-input
+            filled
+            v-model.number="config.worldSettings.serverPlayerMaxNum"
+            type="number"
+            label="游戏服务器最大人数"
+            class="q-my-md"
+          />
           <q-input
             filled
             v-model.number="config.worldSettings.publicPort"
@@ -639,6 +652,10 @@
           :status="status"
         />
       </q-page>
+      <!-- 存档管理组件 -->
+      <q-page padding v-if="tab === 'save-manage'">
+        <save-manage />
+      </q-page>
     </q-page-container>
   </q-layout>
 </template>
@@ -649,6 +666,7 @@ import axios from 'axios';
 import { QPage, QCard, QCardSection } from 'quasar';
 import RunningProcessStatus from 'components/RunningProcessStatus.vue';
 import PlayerManage from 'components/PlayerManage.vue';
+import SaveManage from 'components/SaveManage.vue';
 
 //给components传递数据
 const props = defineProps({

@@ -21,6 +21,7 @@ type Config struct {
 	GameSavePath              string             `json:"gameSavePath"`              // 游戏存档路径 \PalServer\Pal\Saved\文件夹的完整路径
 	BackupPath                string             `json:"backupPath"`                // 备份路径
 	Address                   string             `json:"address"`                   // 服务器 IP 地址
+	UseHttps                  bool               `json:"usehttps"`                  // 使用 https
 	WebuiPort                 string             `json:"webuiPort"`                 // Webui 端口号
 	AutolaunchWebui           bool               `json:"autoLaunchWebui"`           // 自动打开webui
 	ProcessName               string             `json:"processName"`               // 进程名称 PalServer
@@ -43,6 +44,7 @@ var defaultConfig = Config{
 	GameSavePath:              "",
 	BackupPath:                "",
 	Address:                   "127.0.0.1",
+	UseHttps:                  false,
 	ProcessName:               "PalServer",
 	ServerOptions:             []string{"-useperfthreads", "-NoAsyncLoadingThread", "-UseMultithreadForDS"},
 	CheckInterval:             30,      // 30 秒
