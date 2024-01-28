@@ -79,7 +79,7 @@ func KillProcess() error {
 		cmd = exec.Command("taskkill", "/IM", "PalServer-Win64-Test-Cmd.exe", "/F")
 	} else {
 		// 非Windows: 使用pkill命令和进程名称
-		cmd = exec.Command("pkill", "-f", "PalServer-Win64-Test-Cmd.exe")
+		cmd = exec.Command("pkill", "-f", "PalServer-Linux-Test")
 	}
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
