@@ -30,7 +30,7 @@
           />
           <q-toggle
             v-model="config.autoLaunchWebui"
-            label="自动打开 Web UI"
+            label="启动后自动在服务器打开网页"
             class="q-my-md"
           />
           <q-input

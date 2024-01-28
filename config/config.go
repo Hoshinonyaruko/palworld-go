@@ -49,7 +49,7 @@ var defaultConfig = Config{
 	ServerOptions:             []string{"-useperfthreads", "-NoAsyncLoadingThread", "-UseMultithreadForDS"},
 	CheckInterval:             30,     // 30 秒
 	WebuiPort:                 "8000", // Webui 端口号
-	AutolaunchWebui:           true,
+	AutolaunchWebui:           false,
 	BackupInterval:            1800,                                                        // 30 分钟
 	MemoryCheckInterval:       60,                                                          // 60 秒
 	MemoryUsageThreshold:      90,                                                          // 90%
@@ -210,6 +210,13 @@ func checkAndSetDefaults(config *Config) bool {
 			field.Set(defaultField)
 			modified = true
 		}
+	}
+
+	// 如果BackupPath为空，则设置为gamePath\backup
+	if config.BackupPath == "" {
+		config.BackupPath = filepath.Join(config.GamePath, "backup")
+		fmt.Printf("未设置备份目录，自动设置为：%s\n", config.BackupPath)
+		modified = true
 	}
 
 	return modified

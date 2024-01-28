@@ -29,7 +29,7 @@ func (task *palworldBroadcast) Schedule() {
 }
 
 func (task *palworldBroadcast) RunpalworldBroadcast() {
-	log.Println("准备进行全服推送...由于帕鲁暂未支持中文，仅支持英文")
+	log.Println("准备进行全服推送...由于暂未支持中文，仅支持英文")
 	// 初始化RCON客户端
 	address := task.Config.Address + ":" + strconv.Itoa(task.Config.WorldSettings.RconPort)
 	rconClient := NewRconClient(address, task.Config.WorldSettings.AdminPassword, task.BackupTask)
