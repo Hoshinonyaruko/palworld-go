@@ -1,18 +1,12 @@
 package main
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"embed"
-	"encoding/pem"
 	"fmt"
 	"io/fs"
 	"log"
 	"math/big"
-	"net"
 	"net/http"
 	"os"
 	"os/exec"
