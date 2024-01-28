@@ -23,7 +23,7 @@ func NewRestarter() *UnixRestarter {
 func (r *UnixRestarter) Restart(executableName string) error {
 	scriptContent := "#!/bin/sh\n" +
 		"sleep 1\n" + // Sleep for a bit to allow the main application to exit
-		"." + executableName + "\n"
+		executableName + "\n"
 
 	scriptName := "restart.sh"
 	if err := os.WriteFile(scriptName, []byte(scriptContent), 0755); err != nil {
