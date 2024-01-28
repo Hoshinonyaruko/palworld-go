@@ -9,14 +9,13 @@
         <q-tab name="server" label="服务端配置修改" />
         <q-tab name="command" label="服务器指令" />
         <q-tab name="player-manage" label="玩家管理" />
-        <q-tab name="advanced" label="SAV修改" @click="redirectToSav" />
         <q-tab name="server-check" label="主机管理" />
         <q-tab name="save-manage" label="存档管理" />
       </q-tabs>
     </q-header>
 
     <!-- 主页面内容区 -->
-    <q-page-container class="custom-flex-fit fit column no-wrap">
+    <q-page-container class="custom-flex-fit fit column no-wrap" style="max-width: 980px;">
       <q-page padding v-if="tab === 'guard'">
         <!-- 守护配置修改页面内容 -->
         <div class="q-gutter-xs q-mt-md">
@@ -32,11 +31,6 @@
           <q-toggle
             v-model="config.autoLaunchWebui"
             label="自动打开 Web UI"
-            class="q-my-md"
-          />
-          <q-toggle
-            v-model="config.usehttps"
-            label="webui强制https(解锁玩家管理复制按钮)"
             class="q-my-md"
           />
           <q-input
@@ -692,10 +686,6 @@ const toggleTooltip = (type) => {
 
 const toggleTooltip2 = (type) => {
   showDifficultyTooltip.value = !showDifficultyTooltip.value;
-};
-
-const redirectToSav = () => {
-  window.location.href = '/sav/index.html'; // 重定向到 /sav 路径
 };
 
 // // 难度选项

@@ -36,9 +36,9 @@
       <code>{{ status?.disk.percent.toFixed(2) }}%</code>
     </q-chip>
     <div class="q-mt-lg">
-      <q-btn color="green" label="重启服务端" @click="restartServer"></q-btn>
-      <q-btn color="blue" label="开启服务端" @click="startServer"></q-btn>
-      <q-btn color="orange" label="关闭服务端" @click="stopServer"></q-btn>
+      <q-btn color="green" label="重启服务端" @click="restartServer" style="margin:20px;"></q-btn>
+      <q-btn color="blue" label="开启服务端" @click="startServer" style="margin:20px;"></q-btn>
+      <q-btn color="orange" label="关闭服务端" @click="stopServer" style="margin:20px;"></q-btn>
     </div>
   </div>
 </template>

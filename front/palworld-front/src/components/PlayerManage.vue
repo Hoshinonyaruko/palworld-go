@@ -42,20 +42,6 @@
               @click.stop="kickOrBan(player, 'ban')"
               >封禁</q-btn
             >
-            <q-btn
-              flat
-              color="blue"
-              icon="content_copy"
-              @click.stop="copyToClipboard(player.playeruid)"
-              >复制UID</q-btn
-            >
-            <q-btn
-              flat
-              color="blue"
-              icon="content_copy"
-              @click.stop="copyToClipboard(player.steamid)"
-              >复制SteamID</q-btn
-            >
           </q-item-section>
         </q-item>
       </q-list>
