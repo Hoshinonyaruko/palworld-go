@@ -25,7 +25,7 @@ https://github.com/Bluefissure/pal-conf
 本项目的webui特别对移动端设备进行优化，手机使用更轻松
 （老版本iossafari 如果遇到按钮点不动刷新页面再点即可）
 
-webui可友善的可视化的修改帕鲁服务器，守护配置，内存配置，目前webui端口固定52000
+webui可友善的可视化的修改帕鲁服务器，守护配置，内存配置，目前webui端口固定8000
 
 将可执行文件放置在
 
@@ -35,7 +35,7 @@ webui可友善的可视化的修改帕鲁服务器，守护配置，内存配置
 
 运行palworld-go.exe 会自动进入webui
 
-webui默认地址:http://127.0.0.1:52000
+webui默认地址:http://127.0.0.1:8000
 
 端口可在config.json修改，放通至公网可在公网访问
 

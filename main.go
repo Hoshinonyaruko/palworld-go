@@ -109,8 +109,8 @@ func main() {
 	go memoryCheckTask.Schedule()
 	fmt.Printf("webui-api运行在%v端口\n", jsonconfig.WebuiPort)
 	fmt.Printf("webui地址:http://127.0.0.1:%v\n", jsonconfig.WebuiPort)
-	fmt.Printf("开放52000端口后可外网访问,用户名,服务器名(可以中文),初始用户名palgo初始密码useradmin\n")
-	fmt.Printf("为了防止误修改,52000端口仅可在config.json修改\n")
+	fmt.Printf("开放8000端口后可外网访问,用户名,服务器名(可以中文),初始用户名palgo初始密码useradmin\n")
+	fmt.Printf("为了防止误修改,8000端口仅可在config.json修改\n")
 	if jsonconfig.AutolaunchWebui {
 		OpenWebUI(&jsonconfig)
 	}
