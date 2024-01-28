@@ -35,8 +35,29 @@
       <strong>磁盘使用率:</strong>
       <code>{{ status?.disk.percent.toFixed(2) }}%</code>
     </q-chip>
+    <div class="q-mt-lg">
+      <q-btn color="green" label="重启服务端" @click="restartServer"></q-btn>
+      <q-btn color="blue" label="开启服务端" @click="startServer"></q-btn>
+      <q-btn color="orange" label="关闭服务端" @click="stopServer"></q-btn>
+    </div>
   </div>
 </template>
 <script setup lang="ts">
+import { defineProps } from 'vue';
+import axios from 'axios';
+
 const props = defineProps<{ status: any }>();
+
+const sendRequest = async (url: string) => {
+  try {
+    const response = await axios.post(url);
+    console.log('Response:', response);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+};
+
+const restartServer = () => sendRequest('/api/restart');
+const startServer = () => sendRequest('/api/start');
+const stopServer = () => sendRequest('/api/stop');
 </script>

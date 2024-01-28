@@ -3,12 +3,15 @@ package webui
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -50,6 +53,11 @@ type KickOrBanRequest struct {
 	PlayerUID string `json:"playeruid"`
 	SteamID   string `json:"steamid"`
 	Type      string `json:"type"`
+}
+
+// ChangeSaveRequest 用于解析请求体
+type ChangeSaveRequest struct {
+	Path string `json:"path"`
 }
 
 //go:embed dist/*
@@ -116,6 +124,16 @@ func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 				HandleRestart(c, config)
 				return
 			}
+			// 处理 /api/save-json 的POST请求
+			if c.Request.URL.Path == "/api/start" && c.Request.Method == http.MethodPost {
+				HandleStart(c, config)
+				return
+			}
+			// 处理 /api/save-json 的POST请求
+			if c.Request.URL.Path == "/api/stop" && c.Request.Method == http.MethodPost {
+				HandleStop(c, config)
+				return
+			}
 			// 进程监控
 			if c.Param("filepath") == "/api/status" && c.Request.Method == http.MethodGet {
 				// 检查操作系统是否既不是 Android 也不是 Darwin (macOS)
@@ -129,9 +147,29 @@ func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 				listPlayer(c, config, db)
 				return
 			}
-			// 处理 /kickorban 的GET请求
+			// 处理 /kickorban 的POST请求
 			if c.Request.URL.Path == "/api/kickorban" && c.Request.Method == http.MethodPost {
 				handleKickOrBan(c, config, db)
+				return
+			}
+			// 处理 /getsavelist 的POST请求
+			if c.Request.URL.Path == "/api/getsavelist" && c.Request.Method == http.MethodGet {
+				handleGetSavelist(c, config)
+				return
+			}
+			// 处理 /changesave 的POST请求
+			if c.Request.URL.Path == "/api/changesave" && c.Request.Method == http.MethodPost {
+				handleChangeSave(c, config)
+				return
+			}
+			// 处理 /savenow 的POST请求
+			if c.Request.URL.Path == "/api/savenow" && c.Request.Method == http.MethodPost {
+				handleSaveNow(c, config)
+				return
+			}
+			// 处理 /delsave 的POST请求
+			if c.Request.URL.Path == "/api/delsave" && c.Request.Method == http.MethodPost {
+				handleDelSave(c, config)
 				return
 			}
 
@@ -311,18 +349,65 @@ func HandleRestart(c *gin.Context, cfg config.Config) {
 	}
 
 	// Cookie验证通过后，执行重启操作
-	go restartService(cfg)
+	go restartService(cfg, true)
 	c.JSON(http.StatusOK, gin.H{"message": "Restart initiated"})
 
 }
 
-func restartService(cfg config.Config) {
-	// 首先，尝试终止同名进程
+func HandleStart(c *gin.Context, cfg config.Config) {
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	// Cookie验证通过后，执行重启操作
+	go restartService(cfg, false)
+	c.JSON(http.StatusOK, gin.H{"message": "start initiated"})
+
+}
+
+func HandleStop(c *gin.Context, cfg config.Config) {
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	// 终止进程
 	if err := sys.KillProcess(); err != nil {
 		log.Printf("Failed to kill existing process: %v", err)
 		// 可以选择在此处返回，也可以继续尝试启动新进程
 	}
+	c.JSON(http.StatusOK, gin.H{"message": "Stop initiated"})
 
+}
+
+func restartService(cfg config.Config, kill bool) {
+	//结束以前的服务端
+	if kill {
+		// 首先，尝试终止同名进程
+		if err := sys.KillProcess(); err != nil {
+			log.Printf("Failed to kill existing process: %v", err)
+			// 可以选择在此处返回，也可以继续尝试启动新进程
+		}
+	}
 	// 构建游戏服务器的启动命令
 	var exePath string
 	var args []string
@@ -332,15 +417,26 @@ func restartService(cfg config.Config) {
 
 	if runtime.GOOS == "windows" {
 		exePath = filepath.Join(cfg.GamePath, cfg.ProcessName+".exe")
+		args = []string{
+			"-RconEnabled=True",
+			fmt.Sprintf("-AdminPassword=%s", cfg.WorldSettings.AdminPassword),
+			fmt.Sprintf("-port=%d", cfg.WorldSettings.PublicPort),
+			fmt.Sprintf("-players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
+		}
 	} else {
 		exePath = filepath.Join(cfg.GamePath, cfg.ProcessName+".sh")
+		args = []string{
+			"--RconEnabled=True",
+			fmt.Sprintf("--AdminPassword=%s", cfg.WorldSettings.AdminPassword),
+			fmt.Sprintf("--port=%d", cfg.WorldSettings.PublicPort),
+			fmt.Sprintf("--players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
+		}
 	}
 
-	args = cfg.ServerOptions
-	//args = append(args, gameArgs...) // 添加GameWorldSettings参数
+	args = append(args, cfg.ServerOptions...) // 添加GameWorldSettings参数
 
 	// 执行启动命令
-	log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))
+	log.Printf("webui重启服务端,启动命令: %s %s", exePath, strings.Join(args, " "))
 	cmd := exec.Command(exePath, args...)
 	cmd.Dir = cfg.GamePath // 设置工作目录为游戏路径
 
@@ -596,4 +692,281 @@ func handleKickOrBan(c *gin.Context, config config.Config, db *bbolt.DB) {
 
 	tool.UpdateLastOnlineForPlayer(db, req.SteamID)
 	c.JSON(http.StatusOK, gin.H{"message": "Success"})
+}
+
+// handleGetSavelist 处理 /api/getsavelist 请求
+func handleGetSavelist(c *gin.Context, config config.Config) {
+	// 获取保存路径
+	savePath := config.BackupPath
+
+	// 正则表达式匹配特定的日期时间格式
+	regex, err := regexp.Compile(`^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$`)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Regex compile error"})
+		return
+	}
+
+	// 枚举文件夹并匹配
+	var folders []string
+	err = filepath.Walk(savePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() && regex.MatchString(info.Name()) {
+			folders = append(folders, info.Name())
+		}
+		return nil
+	})
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 反转文件夹列表
+	for i, j := 0, len(folders)-1; i < j; i, j = i+1, j-1 {
+		folders[i], folders[j] = folders[j], folders[i]
+	}
+
+	// 返回符合条件的文件夹名称
+	c.JSON(http.StatusOK, folders)
+}
+
+// handleChangeSave 处理 /api/changesave 请求
+func handleChangeSave(c *gin.Context, config config.Config) {
+	var req ChangeSaveRequest
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// 首先，尝试终止同名进程
+	if err := sys.KillProcess(); err != nil {
+		log.Printf("Failed to kill existing process: %v", err)
+		// 可以选择在此处返回，也可以继续尝试启动新进程
+	}
+
+	// 检查源路径是否存在
+	sourcePath := filepath.Join(config.BackupPath, req.Path, "SaveGames", "0")
+	if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Source save path does not exist"})
+		return
+	}
+
+	// 获取源路径中的哈希文件夹名称
+	sourceHashFolder, err := getHashFolderName(sourcePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 获取目标路径中的哈希文件夹名称
+	destPath := filepath.Join(config.GamePath, "Pal", "Saved", "SaveGames", "0")
+	destHashFolder, err := getHashFolderName(destPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 复制文件
+	err = copyDir(filepath.Join(sourcePath, sourceHashFolder), filepath.Join(destPath, destHashFolder))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 存档更换成功后
+	go restartService(config, true)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Save changed successfully"})
+}
+
+// getHashFolderName 获取哈希命名的文件夹名称
+func getHashFolderName(path string) (string, error) {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return "", err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			// 假设每个子目录都是哈希命名的
+			return entry.Name(), nil
+		}
+	}
+
+	return "", errors.New("no hash folder found")
+}
+
+// runBackup 执行备份操作
+func runBackup(config config.Config) {
+	// 获取当前日期和时间
+	currentDate := time.Now().Format("2006-01-02-15-04-05")
+
+	// 创建新的备份目录
+	backupDir := filepath.Join(config.BackupPath, currentDate)
+	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		log.Printf("Failed to create backup directory: %v", err)
+		return
+	}
+
+	// 确定源文件的路径和目标路径
+	sourcePath := filepath.Join(config.GameSavePath, "SaveGames")
+	destinationPath := filepath.Join(backupDir, "SaveGames")
+
+	// 执行文件复制操作
+	if err := copyDir(sourcePath, destinationPath); err != nil {
+		log.Printf("Failed to copy files for backup SaveGames: %v", err)
+	} else {
+		log.Printf("Backup completed successfully: %s", destinationPath)
+	}
+
+	// 确定源文件的路径和目标路径
+	sourcePath = filepath.Join(config.GameSavePath, "Config")
+	destinationPath = filepath.Join(backupDir, "Config")
+
+	// 执行文件复制操作
+	if err := copyDir(sourcePath, destinationPath); err != nil {
+		log.Printf("Failed to copy files for backup Config: %v", err)
+	} else {
+		log.Printf("Backup completed successfully: %s", destinationPath)
+	}
+}
+
+// copyDir 递归复制目录及其内容
+func copyDir(src string, dst string) error {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
+		return err
+	}
+
+	dir, _ := os.Open(src)
+	defer dir.Close()
+	entries, _ := dir.Readdir(-1)
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			if err := copyDir(srcPath, dstPath); err != nil {
+				return err
+			}
+		} else {
+			if err := copyFile(srcPath, dstPath); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// copyFile 复制单个文件
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	if _, err = io.Copy(dstFile, srcFile); err != nil {
+		return err
+	}
+
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	return os.Chmod(dst, srcInfo.Mode())
+}
+
+// SaveNowRequest 用于解析请求体
+type SaveNowRequest struct {
+	Timestamp int64 `json:"timestamp"`
+}
+
+// handleSaveNow 处理 /api/savenow 请求
+func handleSaveNow(c *gin.Context, config config.Config) {
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	// 解析请求体
+	var req SaveNowRequest
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// 校验时间戳
+	currentTime := time.Now().Unix()
+	if abs(currentTime-req.Timestamp) > 10 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid timestamp"})
+		return
+	}
+
+	// 执行备份操作
+	go runBackup(config)
+	c.JSON(http.StatusOK, gin.H{"message": "Backup initiated"})
+}
+
+// abs 返回绝对值
+func abs(n int64) int64 {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
+// handleDelSave 处理 /api/delsave 请求
+func handleDelSave(c *gin.Context, config config.Config) {
+	// 从请求体直接读取文件名数组
+	var files []string
+	if err := c.BindJSON(&files); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	savePath := config.BackupPath
+
+	for _, file := range files {
+		// 构建完整的文件路径
+		filePath := filepath.Join(savePath, file)
+
+		// 检查文件是否存在
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "File does not exist: " + file})
+			return
+		}
+
+		// 删除文件
+		if err := os.Remove(filePath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete file: " + file})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Files deleted successfully"})
 }

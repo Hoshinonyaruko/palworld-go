@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -123,6 +124,43 @@ func RestartApplication() {
 
 	// 退出程序
 	os.Exit(0)
+}
+
+func GetPublicIP() (string, error) {
+	// 访问iframe提供的URL
+	resp, err := http.Get("http://only-985281-116-238-216-144.nstool.yqkk.link/")
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	// 确认HTTP请求成功了
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("could not fetch iframe data: HTTP status %d", resp.StatusCode)
+	}
+
+	// 读取响应体
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	// 将响应体转换为字符串
+	body := string(b)
+
+	// 使用正则表达式查找IP地址
+	re := regexp.MustCompile(`\d+\.\d+\.\d+\.\d+`)
+	ipMatches := re.FindAllString(body, -1)
+
+	if ipMatches == nil {
+		return "", fmt.Errorf("no IP address found")
+	}
+
+	// 第一个匹配的就是公共IP
+	publicIP := ipMatches[0]
+
+	// 返回找到的公共IP地址
+	return publicIP, nil
 }
 
 func findIP(node *html.Node) (string, bool) {
