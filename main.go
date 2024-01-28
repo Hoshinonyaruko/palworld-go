@@ -1,10 +1,18 @@
 package main
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"embed"
+	"encoding/pem"
 	"fmt"
 	"io/fs"
 	"log"
+	"math/big"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -38,9 +46,14 @@ func main() {
 	fmt.Printf("作者 早苗狐 答疑群:587997911\n")
 	//给程序整个标题
 	sys.SetTitle("作者 早苗狐 答疑群:587997911")
+
 	// 设置监控和自动重启
 	supervisor := NewSupervisor(jsonconfig)
 	go supervisor.Start()
+
+	// 设置备份任务
+	backupTask := NewBackupTask(jsonconfig)
+	go backupTask.Schedule()
 
 	if !supervisor.isServiceRunning() {
 		supervisor.restartService()
@@ -67,22 +80,89 @@ func main() {
 		webuiGroup.DELETE("/*filepath", webui.CombinedMiddleware(jsonconfig, db))
 		webuiGroup.PATCH("/*filepath", webui.CombinedMiddleware(jsonconfig, db))
 	}
-	// 创建一个http.Server实例（主服务器）
+
+	if jsonconfig.UseHttps {
+		//创造自签名证书
+		priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			panic(err)
+		}
+		randomOrg := generateRandomString(10)
+		template := x509.Certificate{
+			SerialNumber: big.NewInt(1),
+			Subject: pkix.Name{
+				Organization: []string{"Palworld-go-" + randomOrg},
+			},
+			NotBefore: time.Now(),
+			NotAfter:  time.Now().Add(365 * 24 * time.Hour),
+
+			KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+			ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+			BasicConstraintsValid: true,
+		}
+		publicip, err := sys.GetPublicIP()
+		if err != nil {
+			fmt.Println("获取当前地址生成https证书失败")
+		}
+		ipAddresses := []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP(publicip)}
+		template.IPAddresses = append(template.IPAddresses, ipAddresses...)
+
+		derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+		if err != nil {
+			panic(err)
+		}
+
+		certOut, err := os.Create("cert.pem")
+		if err != nil {
+			panic(err)
+		}
+		pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+		certOut.Close()
+
+		// 编码 ECDSA 私钥
+		encodedKey, err := x509.MarshalECPrivateKey(priv)
+		if err != nil {
+			panic(err) // 或适当的错误处理
+		}
+
+		// 创建 PEM 文件
+		keyOut, err := os.Create("key.pem")
+		if err != nil {
+			panic(err) // 或适当的错误处理
+		}
+		defer keyOut.Close() // 确保文件被正确关闭
+
+		// 将编码后的私钥写入 PEM 文件
+		if err := pem.Encode(keyOut, &pem.Block{Type: "EC PRIVATE KEY", Bytes: encodedKey}); err != nil {
+			panic(err) // 或适当的错误处理
+		}
+	}
+
+	// 创建一个http.Server实例(主服务器)
 	httpServer := &http.Server{
 		Addr:    "0.0.0.0:" + jsonconfig.WebuiPort,
 		Handler: r,
 	}
-	fmt.Printf("webui-api运行在%v端口\n", jsonconfig.WebuiPort)
-	// 在一个新的goroutine中启动主服务器
-	go func() {
-		// 使用HTTP
-		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\n", err)
-		}
-	}()
-	// 设置备份任务
-	backupTask := NewBackupTask(jsonconfig)
-	go backupTask.Schedule()
+
+	if jsonconfig.UseHttps {
+		fmt.Printf("webui-api运行在 HTTPS 端口 %v\n", jsonconfig.WebuiPort)
+		// 在一个新的goroutine中启动主服务器
+		go func() {
+			// 使用 HTTPS
+			if err := httpServer.ListenAndServeTLS("cert.pem", "key.pem"); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("listen: %s\n", err)
+			}
+		}()
+	} else {
+		fmt.Printf("webui-api运行在 HTTP 端口 %v\n", jsonconfig.WebuiPort)
+		// 在一个新的goroutine中启动主服务器
+		go func() {
+			// 使用HTTP
+			if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("listen: %s\n", err)
+			}
+		}()
+	}
 
 	// 设置推送任务
 	palworldBroadcast := NewpalworldBroadcast(jsonconfig)
@@ -217,4 +297,14 @@ func OpenWebUI(config *config.Config) error {
 	}
 
 	return cmd.Start()
+}
+
+func generateRandomString(n int) string {
+	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	b := make([]rune, n)
+	for i := range b {
+		randInt, _ := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+		b[i] = letters[randInt.Int64()]
+	}
+	return string(b)
 }
