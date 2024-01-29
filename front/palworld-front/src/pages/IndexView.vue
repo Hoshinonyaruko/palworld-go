@@ -11,7 +11,6 @@
         <q-tab name="player-manage" label="玩家管理" />
         <q-tab name="server-check" label="主机管理" />
         <q-tab name="save-manage" label="存档管理" />
-        <q-tab name="bot-manage" label="机器人管理" />
       </q-tabs>
     </q-header>
 
@@ -72,24 +71,6 @@
             filled
             v-model="config.steamPath"
             label="Steam安装路径(启动社区服务器用)"
-            class="q-my-md"
-          />
-          <q-input
-            filled
-            v-model="config.onebotV11HttpApiPath"
-            label="Onebotv11Http正向地址(机器人用,包含http://)"
-            class="q-my-md"
-          />
-          <q-input
-            filled
-            v-model="config.cert"
-            label="自定义证书cert,放到同目录下"
-            class="q-my-md"
-          />
-          <q-input
-            filled
-            v-model="config.key"
-            label="自定义证书key,放到同目录下"
             class="q-my-md"
           />
 
