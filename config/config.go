@@ -20,11 +20,17 @@ type Config struct {
 	GamePath                  string             `json:"gamePath"`                  // 游戏可执行文件路径PalServer.exe所处的位置
 	GameSavePath              string             `json:"gameSavePath"`              // 游戏存档路径 \PalServer\Pal\Saved\文件夹的完整路径
 	BackupPath                string             `json:"backupPath"`                // 备份路径
+	SteamPath                 string             `json:"steamPath"`                 // steam路径
+	CommunityServer           bool               `json:"communityServer"`           // 社区服务器开关
+	UseDll                    bool               `json:"useDll"`                    // dll注入
+	Cert                      string             `json:"cert"`                      // 证书
+	Key                       string             `json:"key"`                       // 密钥
 	Address                   string             `json:"address"`                   // 服务器 IP 地址
 	UseHttps                  bool               `json:"usehttps"`                  // 使用 https
 	WebuiPort                 string             `json:"webuiPort"`                 // Webui 端口号
 	AutolaunchWebui           bool               `json:"autoLaunchWebui"`           // 自动打开webui
 	ProcessName               string             `json:"processName"`               // 进程名称 PalServer
+	Onebotv11HttpApiPath      string             `json:"onebotV11HttpApiPath"`      // 机器人框架api地址
 	ServerOptions             []string           `json:"serverOptions"`             // 服务器启动参数
 	CheckInterval             int                `json:"checkInterval"`             // 进程存活检查时间（秒）
 	BackupInterval            int                `json:"backupInterval"`            // 备份间隔（秒）
@@ -43,9 +49,15 @@ var defaultConfig = Config{
 	GamePath:                  "",
 	GameSavePath:              "",
 	BackupPath:                "",
+	SteamPath:                 "",
+	CommunityServer:           false,
 	Address:                   "127.0.0.1",
 	UseHttps:                  false,
 	ProcessName:               "PalServer",
+	Onebotv11HttpApiPath:      "",
+	UseDll:                    false,
+	Cert:                      "",
+	Key:                       "",
 	ServerOptions:             []string{"-useperfthreads", "-NoAsyncLoadingThread", "-UseMultithreadForDS"},
 	CheckInterval:             30,     // 30 秒
 	WebuiPort:                 "8000", // Webui 端口号
