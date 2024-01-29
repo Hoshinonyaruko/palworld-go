@@ -21,7 +21,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorcon/rcon"
 	"github.com/gorilla/websocket"
-	"github.com/hoshinonyaruko/palworld-go/bot"
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/mod"
 	"github.com/hoshinonyaruko/palworld-go/sys"
@@ -174,30 +173,12 @@ func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 				handleDelSave(c, config)
 				return
 			}
-			// 处理 /getbot 的POST请求 webui生成机器人的绑定指令
-			if c.Request.URL.Path == "/api/getbot" && c.Request.Method == http.MethodPost {
-				handleGetBot(c, config)
-				return
-			}
-			// 处理 /getbotlink 的POST请求 webui生成机器人的绑定指令
-			if c.Request.URL.Path == "/api/getbotlink" && c.Request.Method == http.MethodPost {
-				handleGetBot(c, config)
-				return
-			}
-			// 处理 /broadcast 的POST请求 webui生成机器人的绑定指令
-			if c.Request.URL.Path == "/api/broadcast" && c.Request.Method == http.MethodPost {
-				handleBroadcast(c, config)
-				return
-			}
 			// 处理 /restartlater 的POST请求 过一段时间重启
 			if c.Request.URL.Path == "/api/restartlater" && c.Request.Method == http.MethodPost {
 				handleRestartLater(c, config)
 				return
 			}
 
-		} else if strings.HasPrefix(c.Request.URL.Path, "/bot") {
-			bot.GensokyoHandlerClosure(c, config)
-			return
 		} else {
 			// 否则，处理静态文件请求
 			// 如果请求是 "/webui/" ，默认为 "index.html"
@@ -1018,43 +999,6 @@ func handleDelSave(c *gin.Context, config config.Config) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Files deleted successfully"})
-}
-
-func handleGetBot(c *gin.Context, config config.Config) {
-	// 从请求中获取cookie
-	cookieValue, err := c.Cookie("login_cookie")
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
-		return
-	}
-
-	// 使用ValidateCookie函数验证cookie
-	isValid, err := ValidateCookie(cookieValue)
-	if err != nil || !isValid {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
-		return
-	}
-
-	cookie, _ := GenerateCookie()
-	ip, _ := sys.GetPublicIP()
-	ipWithPort := fmt.Sprintf("%s:%s", ip, config.WebuiPort)
-
-	number, err := bot.IpToNumberWithPort(ipWithPort)
-	if err != nil {
-		log.Printf("Error converting IP with port to number: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-		return
-	}
-
-	// 将config.UseHttps转换为字符串形式的 "1" 或 "0"
-	useHttpsStr := "0"
-	if config.UseHttps {
-		useHttpsStr = "1"
-	}
-
-	// 构建响应字符串，包括useHttpsStr作为第三个参数
-	response := fmt.Sprintf("getbot %d %s %s", number, cookie, useHttpsStr)
-	c.String(http.StatusOK, response)
 }
 
 // BroadcastRequest 用于解析传入的JSON请求体
