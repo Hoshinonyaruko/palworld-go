@@ -33,6 +33,16 @@
             label="启动后自动在服务器打开网页"
             class="q-my-md"
           />
+          <q-toggle
+            v-model="config.communityServer"
+            label="启动为社区服务器(需设置steam路径)"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.useDll"
+            label="自动注入UE4SS和可输入命令控制台DLL"
+            class="q-my-md"
+          />
           <q-input
             filled
             v-model="config.maintenanceWarningMessage"
@@ -55,6 +65,12 @@
             filled
             v-model="config.backupPath"
             label="游戏存档备份存放路径"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.steamPath"
+            label="Steam安装路径(启动社区服务器用)"
             class="q-my-md"
           />
 
@@ -492,6 +508,55 @@
             label="工作速度率"
             class="q-my-md"
           />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.dropItemMaxNum"
+            type="number"
+            label="掉落物品最大数量"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.dropItemMaxNum_UNKO"
+            type="number"
+            label="帕鲁排泄物最大数量"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.baseCampMaxNum"
+            type="number"
+            label="基地最大数量"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.baseCampWorkerMaxNum"
+            type="number"
+            label="基地工人最大数量"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.guildPlayerMaxNum"
+            type="number"
+            label="公会最大玩家数量"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.coopPlayerMaxNum"
+            type="number"
+            label="合作玩家最大数量"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model.number="config.worldSettings.serverPlayerMaxNum"
+            type="number"
+            label="服务器玩家最大数量"
+            class="q-my-md"
+          />
 
           <!-- 开关 -->
           <q-toggle
@@ -650,6 +715,10 @@
       <q-page padding v-if="tab === 'save-manage'">
         <save-manage />
       </q-page>
+      <!-- 机器人管理组件 -->
+      <q-page padding v-if="tab === 'bot-manage'">
+        <bot-manage />
+      </q-page>
     </q-page-container>
   </q-layout>
 </template>
@@ -661,6 +730,7 @@ import { QPage, QCard, QCardSection } from 'quasar';
 import RunningProcessStatus from 'components/RunningProcessStatus.vue';
 import PlayerManage from 'components/PlayerManage.vue';
 import SaveManage from 'components/SaveManage.vue';
+import BotManage from 'components/BotManage.vue';
 
 //给components传递数据
 const props = defineProps({
@@ -715,12 +785,12 @@ const removeMessage = (index) => {
 
 // 增加一个消息到数组
 const addMessageServerOptions = () => {
-  config.value.ServerOptions.push('');
+  config.value.serverOptions.push('');
 };
 
 // 从数组中移除一个消息
 const removeMessageServerOptions = (index) => {
-  config.value.ServerOptions.splice(index, 1);
+  config.value.serverOptions.splice(index, 1);
 };
 
 onMounted(async () => {

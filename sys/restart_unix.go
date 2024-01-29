@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"runtime"
 	"syscall"
+
+	"github.com/hoshinonyaruko/palworld-go/config"
 )
 
 // UnixRestarter implements the Restarter interface for Unix-like systems.
@@ -63,4 +65,9 @@ func KillProcess() error {
 	}
 
 	return cmd.Run()
+}
+
+// RunViaBatch 函数接受配置，程序路径和参数数组
+func RunViaBatch(config config.Config, exepath string, args []string) error {
+	return nil
 }
