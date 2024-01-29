@@ -60,6 +60,9 @@ func (task *BackupTask) RunBackup() {
 	} else {
 		log.Printf("Backup completed successfully: %s", destinationPath)
 	}
+
+	// 清理旧备份
+	task.CleanOldBackups()
 }
 
 // copyDir 递归复制目录及其内容
@@ -118,4 +121,48 @@ func copyFile(src, dst string) error {
 	}
 
 	return os.Chmod(dst, srcInfo.Mode())
+}
+
+// 删除超时的备份
+func (task *BackupTask) CleanOldBackups() {
+	backupDir := task.Config.BackupPath
+
+	dir, err := os.Open(backupDir)
+	if err != nil {
+		log.Printf("Failed to open backup directory: %v", err)
+		return
+	}
+	defer dir.Close()
+
+	entries, err := dir.Readdir(-1)
+	if err != nil {
+		log.Printf("Failed to list backup directory: %v", err)
+		return
+	}
+
+	// 定义保留期限阈值
+	retentionThreshold := time.Now().AddDate(0, 0, -5) // 默认5天，可根据需要调整天数
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			dirName := entry.Name()
+			// 尝试从目录名解析日期
+			dirDate, err := time.Parse("2006-01-02-15-04-05", dirName)
+			if err != nil {
+				log.Printf("Failed to parse date from directory name %s: %v", dirName, err)
+				continue // 如果日期格式不匹配，跳过这个目录
+			}
+
+			// 如果目录日期早于保留期限，则删除该目录
+			if dirDate.Before(retentionThreshold) {
+				dirToRemove := filepath.Join(backupDir, dirName)
+				err := os.RemoveAll(dirToRemove)
+				if err != nil {
+					log.Printf("Failed to remove old backup directory %s: %v", dirToRemove, err)
+				} else {
+					log.Printf("Old backup directory removed: %s", dirToRemove)
+				}
+			}
+		}
+	}
 }
