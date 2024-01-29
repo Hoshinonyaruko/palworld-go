@@ -28,7 +28,6 @@ type Config struct {
 	WebuiPort                 string             `json:"webuiPort"`                 // Webui 端口号
 	AutolaunchWebui           bool               `json:"autoLaunchWebui"`           // 自动打开webui
 	ProcessName               string             `json:"processName"`               // 进程名称 PalServer
-	Onebotv11HttpApiPath      string             `json:"onebotV11HttpApiPath"`      // 机器人框架api地址
 	ServerOptions             []string           `json:"serverOptions"`             // 服务器启动参数
 	CheckInterval             int                `json:"checkInterval"`             // 进程存活检查时间（秒）
 	BackupInterval            int                `json:"backupInterval"`            // 备份间隔（秒）
@@ -52,7 +51,6 @@ var defaultConfig = Config{
 	Address:                   "127.0.0.1",
 	UseHttps:                  false,
 	ProcessName:               "PalServer",
-	Onebotv11HttpApiPath:      "",
 	UseDll:                    false,
 	ServerOptions:             []string{"-useperfthreads", "-NoAsyncLoadingThread", "-UseMultithreadForDS"},
 	CheckInterval:             30,     // 30 秒
@@ -225,6 +223,15 @@ func checkAndSetDefaults(config *Config) bool {
 		config.BackupPath = filepath.Join(config.GamePath, "backup")
 		fmt.Printf("未设置备份目录，自动设置为：%s\n", config.BackupPath)
 		modified = true
+	}
+	// 新逻辑：根据GamePath自动设置SteamPath为GamePath的上两级目录
+	if config.GamePath != "" {
+		steamPath := filepath.Dir(filepath.Dir(config.GamePath))
+		if config.SteamPath != steamPath {
+			config.SteamPath = steamPath
+			fmt.Printf("SteamPath自动设置为：%s\n", config.SteamPath)
+			modified = true
+		}
 	}
 
 	return modified
