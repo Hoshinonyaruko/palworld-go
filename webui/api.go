@@ -21,7 +21,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorcon/rcon"
 	"github.com/gorilla/websocket"
+	"github.com/hoshinonyaruko/palworld-go/bot"
 	"github.com/hoshinonyaruko/palworld-go/config"
+	"github.com/hoshinonyaruko/palworld-go/mod"
 	"github.com/hoshinonyaruko/palworld-go/sys"
 	"github.com/hoshinonyaruko/palworld-go/tool"
 	"github.com/shirou/gopsutil/cpu"
@@ -172,7 +174,30 @@ func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 				handleDelSave(c, config)
 				return
 			}
+			// 处理 /getbot 的POST请求 webui生成机器人的绑定指令
+			if c.Request.URL.Path == "/api/getbot" && c.Request.Method == http.MethodPost {
+				handleGetBot(c, config)
+				return
+			}
+			// 处理 /getbotlink 的POST请求 webui生成机器人的绑定指令
+			if c.Request.URL.Path == "/api/getbotlink" && c.Request.Method == http.MethodPost {
+				handleGetBot(c, config)
+				return
+			}
+			// 处理 /broadcast 的POST请求 webui生成机器人的绑定指令
+			if c.Request.URL.Path == "/api/broadcast" && c.Request.Method == http.MethodPost {
+				handleBroadcast(c, config)
+				return
+			}
+			// 处理 /restartlater 的POST请求 过一段时间重启
+			if c.Request.URL.Path == "/api/restartlater" && c.Request.Method == http.MethodPost {
+				handleRestartLater(c, config)
+				return
+			}
 
+		} else if strings.HasPrefix(c.Request.URL.Path, "/bot") {
+			bot.GensokyoHandlerClosure(c, config)
+			return
 		} else {
 			// 否则，处理静态文件请求
 			// 如果请求是 "/webui/" ，默认为 "index.html"
@@ -408,20 +433,35 @@ func restartService(cfg config.Config, kill bool) {
 			// 可以选择在此处返回，也可以继续尝试启动新进程
 		}
 	}
-	// 构建游戏服务器的启动命令
+
 	var exePath string
 	var args []string
 
-	// 构造游戏启动参数
-	//gameArgs := constructGameLaunchArguments(s.Config.WorldSettings)
-
 	if runtime.GOOS == "windows" {
-		exePath = filepath.Join(cfg.GamePath, cfg.ProcessName+".exe")
-		args = []string{
-			"-RconEnabled=True",
-			fmt.Sprintf("-AdminPassword=%s", cfg.WorldSettings.AdminPassword),
-			fmt.Sprintf("-port=%d", cfg.WorldSettings.PublicPort),
-			fmt.Sprintf("-players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
+		if cfg.CommunityServer {
+			exePath = filepath.Join(cfg.SteamPath, "Steam.exe")
+			args = []string{"-applaunch", "2394010"}
+		} else if cfg.UseDll {
+			err := mod.CheckAndWriteFiles(filepath.Join(cfg.GamePath, "Pal", "Binaries", "Win64"))
+			if err != nil {
+				log.Printf("Failed to write files: %v", err)
+				return
+			}
+			exePath = filepath.Join(cfg.GamePath, "Pal", "Binaries", "Win64", "PalServerInject.exe")
+			args = []string{
+				"-RconEnabled=True",
+				fmt.Sprintf("-AdminPassword=%s", cfg.WorldSettings.AdminPassword),
+				fmt.Sprintf("-port=%d", cfg.WorldSettings.PublicPort),
+				fmt.Sprintf("-players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
+			}
+		} else {
+			exePath = filepath.Join(cfg.GamePath, cfg.ProcessName+".exe")
+			args = []string{
+				"-RconEnabled=True",
+				fmt.Sprintf("-AdminPassword=%s", cfg.WorldSettings.AdminPassword),
+				fmt.Sprintf("-port=%d", cfg.WorldSettings.PublicPort),
+				fmt.Sprintf("-players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
+			}
 		}
 	} else {
 		exePath = filepath.Join(cfg.GamePath, cfg.ProcessName+".sh")
@@ -436,15 +476,20 @@ func restartService(cfg config.Config, kill bool) {
 	args = append(args, cfg.ServerOptions...) // 添加GameWorldSettings参数
 
 	// 执行启动命令
-	log.Printf("webui重启服务端,启动命令: %s %s", exePath, strings.Join(args, " "))
-	cmd := exec.Command(exePath, args...)
-	cmd.Dir = cfg.GamePath // 设置工作目录为游戏路径
-
-	// 启动进程
-	if err := cmd.Start(); err != nil {
-		log.Printf("Failed to restart game server: %v", err)
+	log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))
+	if cfg.UseDll && runtime.GOOS == "windows" {
+		log.Printf("use bat")
+		sys.RunViaBatch(cfg, exePath, args)
 	} else {
-		log.Printf("Game server restarted successfully")
+		cmd := exec.Command(exePath, args...)
+		cmd.Dir = cfg.GamePath // 设置工作目录为游戏路径
+
+		// 启动进程
+		if err := cmd.Start(); err != nil {
+			log.Printf("Failed to restart game server: %v", err)
+		} else {
+			log.Printf("Game server restarted successfully")
+		}
 	}
 }
 
@@ -969,4 +1014,120 @@ func handleDelSave(c *gin.Context, config config.Config) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Files deleted successfully"})
+}
+
+func handleGetBot(c *gin.Context, config config.Config) {
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	cookie, _ := GenerateCookie()
+	ip, _ := sys.GetPublicIP()
+	ipWithPort := fmt.Sprintf("%s:%s", ip, config.WebuiPort)
+
+	number, err := bot.IpToNumberWithPort(ipWithPort)
+	if err != nil {
+		log.Printf("Error converting IP with port to number: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	// 将config.UseHttps转换为字符串形式的 "1" 或 "0"
+	useHttpsStr := "0"
+	if config.UseHttps {
+		useHttpsStr = "1"
+	}
+
+	// 构建响应字符串，包括useHttpsStr作为第三个参数
+	response := fmt.Sprintf("getbot %d %s %s", number, cookie, useHttpsStr)
+	c.String(http.StatusOK, response)
+}
+
+// BroadcastRequest 用于解析传入的JSON请求体
+type BroadcastRequest struct {
+	Message string `json:"message"`
+}
+
+// handleBroadcast 处理 /api/broadcast 的POST请求
+func handleBroadcast(c *gin.Context, config config.Config) {
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	var req BroadcastRequest
+
+	// 绑定JSON请求体到req
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// 调用 tool.Broadcast 发送广播
+	err = tool.Broadcast(config, req.Message)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Broadcast sent successfully"})
+}
+
+// RestartLaterRequest 用于绑定JSON请求体
+type RestartLaterRequest struct {
+	Seconds string `json:"seconds"`
+	Message string `json:"message"`
+}
+
+// handleRestartLater 处理 /api/restartlater 的POST请求
+func handleRestartLater(c *gin.Context, config config.Config) {
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	var req RestartLaterRequest
+
+	// 绑定JSON请求体到req
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// 调用tool.Shutdown来安排重启
+	err = tool.Shutdown(config, req.Seconds, req.Message)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Restart scheduled successfully"})
 }

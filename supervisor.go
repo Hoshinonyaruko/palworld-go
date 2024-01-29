@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/hoshinonyaruko/palworld-go/config"
+	"github.com/hoshinonyaruko/palworld-go/mod"
+	"github.com/hoshinonyaruko/palworld-go/sys"
 )
 
 type Supervisor struct {
@@ -62,22 +64,37 @@ func (s *Supervisor) isServiceRunning() bool {
 }
 
 func (s *Supervisor) restartService() {
-	// 构建游戏服务器的启动命令
 	var exePath string
 	var args []string
 
-	// 构造游戏启动参数
-	//gameArgs := constructGameLaunchArguments(s.Config.WorldSettings)
-
 	if runtime.GOOS == "windows" {
-		exePath = filepath.Join(s.Config.GamePath, s.Config.ProcessName+".exe")
-		args = []string{
-			"-RconEnabled=True",
-			fmt.Sprintf("-AdminPassword=%s", s.Config.WorldSettings.AdminPassword),
-			fmt.Sprintf("-port=%d", s.Config.WorldSettings.PublicPort),
-			fmt.Sprintf("-players=%d", s.Config.WorldSettings.ServerPlayerMaxNum),
+		if s.Config.CommunityServer {
+			exePath = filepath.Join(s.Config.SteamPath, "Steam.exe")
+			args = []string{"-applaunch", "2394010"}
+		} else if s.Config.UseDll {
+			err := mod.CheckAndWriteFiles(filepath.Join(s.Config.GamePath, "Pal", "Binaries", "Win64"))
+			if err != nil {
+				log.Printf("Failed to write files: %v", err)
+				return
+			}
+			exePath = filepath.Join(s.Config.GamePath, "Pal", "Binaries", "Win64", "PalServerInject.exe")
+			args = []string{
+				"-RconEnabled=True",
+				fmt.Sprintf("-AdminPassword=%s", s.Config.WorldSettings.AdminPassword),
+				fmt.Sprintf("-port=%d", s.Config.WorldSettings.PublicPort),
+				fmt.Sprintf("-players=%d", s.Config.WorldSettings.ServerPlayerMaxNum),
+			}
+		} else {
+			exePath = filepath.Join(s.Config.GamePath, s.Config.ProcessName+".exe")
+			args = []string{
+				"-RconEnabled=True",
+				fmt.Sprintf("-AdminPassword=%s", s.Config.WorldSettings.AdminPassword),
+				fmt.Sprintf("-port=%d", s.Config.WorldSettings.PublicPort),
+				fmt.Sprintf("-players=%d", s.Config.WorldSettings.ServerPlayerMaxNum),
+			}
 		}
 	} else {
+		// 对于非Windows系统的处理保持不变
 		exePath = filepath.Join(s.Config.GamePath, s.Config.ProcessName+".sh")
 		args = []string{
 			"--RconEnabled=True",
@@ -91,15 +108,21 @@ func (s *Supervisor) restartService() {
 
 	// 执行启动命令
 	log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))
-	cmd := exec.Command(exePath, args...)
-	cmd.Dir = s.Config.GamePath // 设置工作目录为游戏路径
-
-	// 启动进程
-	if err := cmd.Start(); err != nil {
-		log.Printf("Failed to restart game server: %v", err)
+	if s.Config.UseDll && runtime.GOOS == "windows" {
+		log.Printf("use bat")
+		sys.RunViaBatch(s.Config, exePath, args)
 	} else {
-		log.Printf("Game server restarted successfully")
+		cmd := exec.Command(exePath, args...)
+		cmd.Dir = s.Config.GamePath // 设置工作目录为游戏路径
+
+		// 启动进程
+		if err := cmd.Start(); err != nil {
+			log.Printf("Failed to restart game server: %v", err)
+		} else {
+			log.Printf("Game server restarted successfully")
+		}
 	}
+
 }
 
 // func constructGameLaunchArguments(settings *GameWorldSettings) []string {
