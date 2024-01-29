@@ -17,10 +17,63 @@ _✨ 使用go+quasar实现的palworld webui ✨_
 本项目的直接参考（linux版的palworld服务端守护脚本）
 
 https://gist.github.com/Bluefissure/b0fcb05c024ee60cad4e23eb55463062
+
 本项目内置了该项目的编译后网页dist
+
 https://github.com/Bluefissure/pal-conf
 
+特别鸣谢
+
+https://github.com/VeroFess/PalWorld-Server-Unoffical-Api
+
+本项目简化并自动了上方项目的dll注入，为帕鲁服务端命令行引入了增强的rcon api(中文输入)和可操作的命令行控制台。
+
+https://github.com/N00byKing/PalWorld-ServerInjector
+
+本项目简化并自动了上方项目的dll注入，并内置了其注入器的可执行文件。
+
+## 机器人
+初步实现了Onebotv11标准的palworld机器人
+
+可配合https://gensokyo.bot 项目在 QQ群 QQ频道 kook频道 Discord群组 部署
+
+支持的机器人特性:面板即机器人 有面板，未搭建机器人的用户，可去中心化的公用已搭建的机器人
+
+目前机器人支持指令:
+
+    	"getbot - 获取机器人信息",
+
+		"player - 获取玩家信息",
+
+		"update player - 更新玩家信息",
+
+		"玩家列表 - 显示玩家列表",
+
+		"刷新玩家列表 - 刷新并显示玩家列表",
+
+		"kick - 踢出玩家",
+
+		"踢人 - 踢出玩家",
+
+		"ban - 封禁玩家",
+
+		"封禁 - 封禁玩家",
+
+		"Broadcast - 发送广播消息",
+
+		"广播 - 发送广播消息",
+
+		"重启服务器 - 重启游戏服务器",
+
+		"restart - 重启游戏服务器",
+
 ## 使用方法
+
+The user interface language of this project is in Chinese. 
+
+However, you are free to use the built-in web page translation features of various browsers to translate it into any language of your choice.
+
+Should you encounter any issues, please feel free to submit an issue in any language.
 
 本项目的webui特别对移动端设备进行优化，手机使用更轻松
 （老版本iossafari 如果遇到按钮点不动刷新页面再点即可）
@@ -56,6 +109,14 @@ webui默认地址:http://127.0.0.1:52000
 ![bluefissure制作的sav修改页面](pic/5.png)
 
 ![服务器监控](pic/6.png)
+
+![自动注入](pic/7.png)
+
+![玩家管理](pic/8.png)
+
+![存档管理](pic/9.png)
+
+![机器人管理](pic/10.png)
 
 ## 兼容性
 windows通过了测试，linux有待测试

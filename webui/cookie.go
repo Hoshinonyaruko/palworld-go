@@ -14,7 +14,7 @@ const (
 	DBName          = "cookie.db"
 	CookieBucket    = "cookies"
 	ExpirationKey   = "expiration"
-	ExpirationHours = 24 // Cookie 有效期为24小时
+	ExpirationHours = 30 * 24 // Cookie 有效期改为一个月
 )
 
 var dbcookie *bolt.DB
