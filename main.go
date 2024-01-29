@@ -16,13 +16,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.etcd.io/bbolt"
-
-	"github.com/hoshinonyaruko/palworld-go/bot"
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/sys"
 	"github.com/hoshinonyaruko/palworld-go/tool"
 	"github.com/hoshinonyaruko/palworld-go/webui"
+	"go.etcd.io/bbolt"
 )
 
 var version string
@@ -58,10 +56,6 @@ func main() {
 	webui.InitializeDB()
 	//玩家数据库
 	db = webui.InitDB()
-	//机器人数据库
-	if jsonconfig.Onebotv11HttpApiPath != "" {
-		bot.InitializeDB()
-	}
 	//启动周期任务
 	go tool.ScheduleTask(db, jsonconfig)
 	if db == nil {
@@ -93,10 +87,6 @@ func main() {
 			// 定义默认的证书和密钥文件名 自签名证书
 			certFile := "cert.pem"
 			keyFile := "key.pem"
-			if jsonconfig.Cert != "" && jsonconfig.Key != "" {
-				certFile = jsonconfig.Cert
-				keyFile = jsonconfig.Key
-			}
 			// 使用 HTTPS
 			if err := httpServer.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
 				log.Fatalf("listen: %s\n", err)
