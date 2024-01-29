@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.etcd.io/bbolt"
 
+	"github.com/hoshinonyaruko/palworld-go/bot"
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/sys"
 	"github.com/hoshinonyaruko/palworld-go/tool"
@@ -57,6 +58,10 @@ func main() {
 	webui.InitializeDB()
 	//玩家数据库
 	db = webui.InitDB()
+	//机器人数据库
+	if jsonconfig.Onebotv11HttpApiPath != "" {
+		bot.InitializeDB()
+	}
 	//启动周期任务
 	go tool.ScheduleTask(db, jsonconfig)
 	if db == nil {
@@ -64,6 +69,7 @@ func main() {
 	}
 	defer db.Close()
 	r := gin.Default()
+
 	//webui和它的api
 	webuiGroup := r.Group("/")
 	{
@@ -84,10 +90,18 @@ func main() {
 		fmt.Printf("webui-api运行在 HTTPS 端口 %v\n", jsonconfig.WebuiPort)
 		// 在一个新的goroutine中启动主服务器
 		go func() {
+			// 定义默认的证书和密钥文件名 自签名证书
+			certFile := "cert.pem"
+			keyFile := "key.pem"
+			if jsonconfig.Cert != "" && jsonconfig.Key != "" {
+				certFile = jsonconfig.Cert
+				keyFile = jsonconfig.Key
+			}
 			// 使用 HTTPS
-			if err := httpServer.ListenAndServeTLS("cert.pem", "key.pem"); err != nil && err != http.ErrServerClosed {
+			if err := httpServer.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
 				log.Fatalf("listen: %s\n", err)
 			}
+
 		}()
 	} else {
 		fmt.Printf("webui-api运行在 HTTP 端口 %v\n", jsonconfig.WebuiPort)

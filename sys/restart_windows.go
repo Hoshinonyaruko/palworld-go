@@ -9,8 +9,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"unsafe"
+
+	"github.com/hoshinonyaruko/palworld-go/config"
 )
 
 // WindowsRestarter implements the Restarter interface for Windows systems.
@@ -83,5 +86,32 @@ func KillProcess() error {
 	}
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd.Run()
+}
+
+// RunViaBatch 函数接受配置，程序路径和参数数组
+func RunViaBatch(config config.Config, exepath string, args []string) error {
+	// 获取当前工作目录
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	// 创建批处理脚本内容
+	batchScript := `@echo off
+	start "" "` + exepath + `" ` + strings.Join(args, " ")
+
+	// 指定批处理文件的路径
+	batchFilePath := filepath.Join(cwd, "run_command.bat")
+
+	// 写入批处理脚本到文件
+	err = os.WriteFile(batchFilePath, []byte(batchScript), 0644)
+	if err != nil {
+		return err
+	}
+
+	// 执行批处理脚本
+	cmd := exec.Command(batchFilePath)
+	cmd.Dir = config.GamePath // 设置工作目录为游戏路径
 	return cmd.Run()
 }

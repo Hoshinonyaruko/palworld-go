@@ -20,11 +20,15 @@ type Config struct {
 	GamePath                  string             `json:"gamePath"`                  // 游戏可执行文件路径PalServer.exe所处的位置
 	GameSavePath              string             `json:"gameSavePath"`              // 游戏存档路径 \PalServer\Pal\Saved\文件夹的完整路径
 	BackupPath                string             `json:"backupPath"`                // 备份路径
+	SteamPath                 string             `json:"steamPath"`                 // steam路径
+	CommunityServer           bool               `json:"communityServer"`           // 社区服务器开关
+	UseDll                    bool               `json:"useDll"`                    // dll注入
 	Address                   string             `json:"address"`                   // 服务器 IP 地址
 	UseHttps                  bool               `json:"usehttps"`                  // 使用 https
 	WebuiPort                 string             `json:"webuiPort"`                 // Webui 端口号
 	AutolaunchWebui           bool               `json:"autoLaunchWebui"`           // 自动打开webui
 	ProcessName               string             `json:"processName"`               // 进程名称 PalServer
+	Onebotv11HttpApiPath      string             `json:"onebotV11HttpApiPath"`      // 机器人框架api地址
 	ServerOptions             []string           `json:"serverOptions"`             // 服务器启动参数
 	CheckInterval             int                `json:"checkInterval"`             // 进程存活检查时间（秒）
 	BackupInterval            int                `json:"backupInterval"`            // 备份间隔（秒）
@@ -43,9 +47,13 @@ var defaultConfig = Config{
 	GamePath:                  "",
 	GameSavePath:              "",
 	BackupPath:                "",
+	SteamPath:                 "",
+	CommunityServer:           false,
 	Address:                   "127.0.0.1",
 	UseHttps:                  false,
 	ProcessName:               "PalServer",
+	Onebotv11HttpApiPath:      "",
+	UseDll:                    false,
 	ServerOptions:             []string{"-useperfthreads", "-NoAsyncLoadingThread", "-UseMultithreadForDS"},
 	CheckInterval:             30,     // 30 秒
 	WebuiPort:                 "8000", // Webui 端口号
@@ -55,7 +63,7 @@ var defaultConfig = Config{
 	MemoryUsageThreshold:      90,                                                          // 90%
 	TotalMemoryGB:             16,                                                          //16G
 	MemoryCleanupInterval:     0,                                                           // 内存清理时间间隔，设为半小时（1800秒）0代表不清理
-	RegularMessages:           []string{"", ""},                                            // 默认的定期推送消息数组，初始可为空
+	RegularMessages:           []string{""},                                                // 默认的定期推送消息数组，初始可为空
 	MessageBroadcastInterval:  3600,                                                        // 默认消息广播周期，假设为1小时（3600秒）
 	MaintenanceWarningMessage: "server is going to rebot,please relogin at 1minute later.", // 默认的维护警告消息
 }
@@ -368,8 +376,8 @@ func ReadGameWorldSettings(config *Config) (*GameWorldSettings, error) {
 		fmt.Printf("初次使用，正在为您自动设置游戏默认参数\n")
 		settingsString = "(Difficulty=None,DayTimeSpeedRate=1.000000,NightTimeSpeedRate=1.000000,ExpRate=1.000000,PalCaptureRate=1.000000,PalSpawnNumRate=1.000000,PalDamageRateAttack=1.000000,PalDamageRateDefense=1.000000,PlayerDamageRateAttack=1.000000,PlayerDamageRateDefense=1.000000,PlayerStomachDecreaceRate=1.000000,PlayerStaminaDecreaceRate=1.000000,PlayerAutoHPRegeneRate=1.000000,PlayerAutoHpRegeneRateInSleep=1.000000,PalStomachDecreaceRate=1.000000,PalStaminaDecreaceRate=1.000000,PalAutoHPRegeneRate=1.000000,PalAutoHpRegeneRateInSleep=1.000000,BuildObjectDamageRate=1.000000,BuildObjectDeteriorationDamageRate=1.000000,CollectionDropRate=1.000000,CollectionObjectHpRate=1.000000,CollectionObjectRespawnSpeedRate=1.000000,EnemyDropItemRate=1.000000,DeathPenalty=All,bEnablePlayerToPlayerDamage=False,bEnableFriendlyFire=False,bEnableInvaderEnemy=True,bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=128,BaseCampWorkerMaxNum=15,DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,PalEggDefaultHatchingTime=72.000000,WorkSpeedRate=1.000000,bIsMultiplay=False,bIsPvP=False,bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=True,bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=False,bEnableDefenseOtherGuildPlayer=False,CoopPlayerMaxNum=4,ServerPlayerMaxNum=32,ServerName=\"palgo\",ServerDescription=\"https://github.com/Hoshinonyaruko/palworld-go\",AdminPassword=\"useradmin\",ServerPassword=\"\",PublicPort=8211,PublicIP=\"\",RCONEnabled=True,RCONPort=25575,Region=\"\",bUseAuth=True,BanListURL=\"https://api.palworldgame.com/api/banlist.txt\")"
 		fmt.Printf("已为您生成默认游戏配置，默认控制台地址:http://127.0.0.1:8000\n")
-		fmt.Printf("控制台默认用户名(在ServerName配置):palgo\n")
-		fmt.Printf("控制台默认密码(在AdminPassword配置):useradmin\n")
+		fmt.Printf("控制台默认用户名(在ServerName配置)\n")
+		fmt.Printf("控制台默认密码(在AdminPassword配置)\n")
 		fmt.Printf("登录cookie 24小时有效,若在控制台修改后需立即刷新,删除cookie.db并使用新的用户名密码登录\n")
 		// 解析设置字符串
 		return parseSettings(settingsString), nil
