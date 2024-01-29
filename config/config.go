@@ -224,9 +224,11 @@ func checkAndSetDefaults(config *Config) bool {
 		fmt.Printf("未设置备份目录，自动设置为：%s\n", config.BackupPath)
 		modified = true
 	}
-	// 新逻辑：根据GamePath自动设置SteamPath为GamePath的上两级目录
+	// 新逻辑：根据GamePath自动设置SteamPath为GamePath的上三级目录
+	// 这个写法更健壮
 	if config.GamePath != "" {
-		steamPath := filepath.Dir(filepath.Dir(config.GamePath))
+		// 调用三次filepath.Dir获取上三级目录
+		steamPath := filepath.Dir(filepath.Dir(filepath.Dir(config.GamePath)))
 		if config.SteamPath != steamPath {
 			config.SteamPath = steamPath
 			fmt.Printf("SteamPath自动设置为：%s\n", config.SteamPath)
