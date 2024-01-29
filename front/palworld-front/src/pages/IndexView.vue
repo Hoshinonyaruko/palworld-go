@@ -715,10 +715,7 @@
       <q-page padding v-if="tab === 'save-manage'">
         <save-manage />
       </q-page>
-      <!-- 机器人管理组件 -->
-      <q-page padding v-if="tab === 'bot-manage'">
-        <bot-manage />
-      </q-page>
+
     </q-page-container>
   </q-layout>
 </template>
@@ -730,7 +727,6 @@ import { QPage, QCard, QCardSection } from 'quasar';
 import RunningProcessStatus from 'components/RunningProcessStatus.vue';
 import PlayerManage from 'components/PlayerManage.vue';
 import SaveManage from 'components/SaveManage.vue';
-import BotManage from 'components/BotManage.vue';
 
 //给components传递数据
 const props = defineProps({
