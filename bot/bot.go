@@ -205,33 +205,45 @@ func GensokyoHandlerClosure(c *gin.Context, config config.Config) {
 }
 
 func getBotHandler(msg string, message OnebotGroupMessage, config config.Config) {
+	// 检查消息是否至少以一个 "getbot" 开头
 	if !strings.HasPrefix(msg, "getbot") {
 		sendGroupMessage(message.GroupID, "错误,指令需要以getbot开头", config)
 		return
 	}
-	// 提取getbot后的信息，同时去除前导空格
-	trimmedMsg := strings.TrimSpace(msg[len("getbot"):])
-	parts := strings.Split(trimmedMsg, " ")
-	if len(parts) < 3 {
+
+	// 将消息分割成多个部分
+	parts := strings.Fields(msg)
+
+	// 查找第一个不是 "getbot" 的部分
+	var startIndex int
+	for i, part := range parts {
+		if part != "getbot" {
+			startIndex = i
+			break
+		}
+	}
+
+	// 确保在第一个非 "getbot" 部分之后还有足够的参数
+	if len(parts) < startIndex+3 {
 		sendGroupMessage(message.GroupID, "指令错误,请在palworld-go项目的机器人管理面板生成指令", config)
 		return
 	}
 
 	// 解析number
-	number, err := strconv.ParseInt(parts[0], 10, 64)
+	number, err := strconv.ParseInt(parts[startIndex], 10, 64)
 	if err != nil {
 		sendGroupMessage(message.GroupID, "错误,请在palworld-go项目的机器人管理面板生成指令,number参数错误", config)
 		return
 	}
 
 	// 获取uuid和httpsFlag
-	uuid := parts[1]
-	httpsFlag := parts[2] // 这应该是 "0" 或 "1"
+	uuid := parts[startIndex+1]
+	httpsFlag := parts[startIndex+2] // 这应该是 "0" 或 "1"
 
 	// 将httpsFlag从 "0"/"1" 转换回 bool
 	useHttps := httpsFlag == "1"
 
-	// 处理cookie
+	// 处理cookie和相关逻辑
 	exists, _ := CheckAndWriteCookie(uuid)
 	if !exists {
 		ipWithPort := numberToIPWithPort(number)
@@ -244,7 +256,6 @@ func getBotHandler(msg string, message OnebotGroupMessage, config config.Config)
 	} else {
 		sendGroupMessage(message.GroupID, "指令无效,请重新生成,为了面板安全,palworld-go指令不可重复使用,如需多人使用,可多次生成.", config)
 	}
-
 }
 
 func getplayerHandler(msg string, message OnebotGroupMessage, config config.Config, update bool) {
