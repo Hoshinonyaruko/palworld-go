@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 //go:embed embeds/*
@@ -22,8 +23,11 @@ func CheckAndWriteFiles(path string) error {
 			return nil
 		}
 
+		// 从嵌入路径中移除“embeds”前缀
+		relativePath := strings.TrimPrefix(embeddedPath, "embeds/")
+
 		// 构建在外部文件系统中的路径
-		externalPath := filepath.Join(path, filepath.Base(embeddedPath))
+		externalPath := filepath.Join(path, relativePath)
 
 		// 检查文件是否存在
 		if _, err := os.Stat(externalPath); os.IsNotExist(err) {
@@ -37,6 +41,11 @@ func CheckAndWriteFiles(path string) error {
 				// 读取嵌入的文件内容
 				data, err := fs.ReadFile(embeddedFiles, embeddedPath)
 				if err != nil {
+					return err
+				}
+
+				// 确保目标文件夹存在
+				if err := os.MkdirAll(filepath.Dir(externalPath), os.ModePerm); err != nil {
 					return err
 				}
 
