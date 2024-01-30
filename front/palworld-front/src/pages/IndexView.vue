@@ -103,6 +103,13 @@
           <!-- 数字输入框 -->
           <q-input
             filled
+            v-model.number="config.RestartInterval"
+            type="number"
+            label="定时重启服务端（秒）"
+            class="q-my-md"
+          />
+          <q-input
+            filled
             v-model.number="config.backupInterval"
             type="number"
             label="备份间隔（秒）"
