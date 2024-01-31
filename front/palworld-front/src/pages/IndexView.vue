@@ -100,6 +100,12 @@
             label="自定义证书key,放到同目录下"
             class="q-my-md"
           />
+          <q-input
+            filled
+            v-model="config.address"
+            label="Rcon地址(只包含ip)大部分场景,默认127.0.0.1即可!"
+            class="q-my-md"
+          />
 
           <!-- 数字输入框 -->
           <q-input
