@@ -18,6 +18,12 @@ import (
 	"gopkg.in/ini.v1"
 )
 
+type PlayerW struct {
+	Name      string `json:"name"`
+	SteamID   string `json:"steamid"`
+	PlayerUID string `json:"playeruid"`
+}
+
 type Config struct {
 	GamePath                  string             `json:"gamePath"`                  // 游戏可执行文件路径PalServer.exe所处的位置
 	GameSavePath              string             `json:"gameSavePath"`              // 游戏存档路径 \PalServer\Pal\Saved\文件夹的完整路径
@@ -46,6 +52,8 @@ type Config struct {
 	MaintenanceWarningMessage string             `json:"maintenanceWarningMessage"` // 维护警告消息
 	WorldSettings             *GameWorldSettings `json:"worldSettings"`             // 帕鲁设定
 	Engine                    *Engine            `json:"engine"`                    // 服务端引擎设置
+	Players                   []*PlayerW         `json:"players"`                   //白名单玩家数组
+	WhiteCheckTime            int                `json:"whiteCheckTime"`            //白名单检测时间
 }
 
 // 默认配置
@@ -72,9 +80,13 @@ var defaultConfig = Config{
 	TotalMemoryGB:             16,                                                          // 16G
 	MemoryCleanupInterval:     1800,                                                        // 内存清理时间间隔，设为半小时（1800秒）0代表不清理
 	RestartInterval:           0,                                                           // 自动重启间隔
+	WhiteCheckTime:            0,                                                           //白名单检查周期
 	RegularMessages:           []string{"", ""},                                            // 默认的定期推送消息数组，初始可为空
 	MessageBroadcastInterval:  3600,                                                        // 默认消息广播周期，假设为1小时（3600秒）
 	MaintenanceWarningMessage: "server is going to rebot,please relogin at 1minute later.", // 默认的维护警告消息
+	Players: []*PlayerW{
+		{}, // 一个空的PlayerW
+	},
 }
 
 // Engine 默认配置
@@ -279,7 +291,7 @@ func checkAndSetDefaults(config *Config) bool {
 		fieldName := typ.Field(i).Name
 
 		// 特殊处理RestartInterval字段
-		if fieldName == "RestartInterval" {
+		if fieldName == "RestartInterval" || fieldName == "WhiteCheckTime" {
 			continue
 		}
 

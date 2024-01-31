@@ -248,6 +248,20 @@ func main() {
 		}()
 	}
 
+	if jsonconfig.WhiteCheckTime != 0 {
+		//白名单
+		whiteInterval := time.Duration(jsonconfig.WhiteCheckTime) * time.Second
+		whiteTicker := time.NewTicker(whiteInterval)
+		go func() {
+			defer whiteTicker.Stop()
+			for range whiteTicker.C {
+				fmt.Println("checking player whitelist")
+				tool.CheckAndKickPlayers(jsonconfig)
+			}
+		}()
+	}
+
+	//定时重启
 	if jsonconfig.RestartInterval != 0 {
 		restartInterval := time.Duration(jsonconfig.RestartInterval) * time.Second
 		restartTicker := time.NewTicker(restartInterval)

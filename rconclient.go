@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 
 	"github.com/gorcon/rcon"
 	"github.com/hoshinonyaruko/palworld-go/config"
@@ -56,9 +58,27 @@ func HandleMemoryUsage(threshold float64, RconClient *RconClient, config config.
 		log.Printf("Error broadcasting memory threshold alert: %v", err)
 	}
 
-	//广播自定义内容
-	if _, err := RconClient.Conn.Execute("broadcast " + config.MaintenanceWarningMessage); err != nil {
-		log.Printf("Error broadcasting: %v", err)
+	// 判断是否使用新的DLL方式发送广播
+	if config.UseDll {
+		// 构建请求的URL
+		base := "http://127.0.0.1:53000/rcon?text="
+		message := "broadcast " + url.QueryEscape(config.MaintenanceWarningMessage)
+		fullURL := base + message
+
+		// 发送HTTP请求
+		resp, err := http.Get(fullURL)
+		if err != nil {
+			log.Printf("Error sending HTTP request: %v", err)
+			return
+		}
+		defer resp.Body.Close()
+		// 可以添加更多的响应处理逻辑
+		log.Println("Broadcast message sent successfully via HTTP")
+	} else {
+		// 原有的方式发送广播
+		if _, err := RconClient.Conn.Execute("broadcast " + config.MaintenanceWarningMessage); err != nil {
+			log.Printf("Error broadcasting: %v", err)
+		}
 	}
 
 	// 保存游戏状态
