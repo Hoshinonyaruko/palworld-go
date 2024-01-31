@@ -109,6 +109,26 @@ var defaultEngine = Engine{
 	},
 }
 
+// Engine 默认配置
+var defaultEngine = Engine{
+	Player: PlayerConfig{
+		ConfiguredInternetSpeed: 104857600,
+		ConfiguredLanSpeed:      104857600,
+	},
+	SocketSubsystemEpic: SocketSubsystemEpicConfig{
+		MaxClientRate:         104857600,
+		MaxInternetClientRate: 104857600,
+	},
+	EngineConfig: EngineConfig{
+		BSmoothFrameRate:        true,
+		BUseFixedFrameRate:      false,
+		SmoothedFrameRateRange:  FrameRateRange{LowerBound: Bound{Type: "Inclusive", Value: 30.0}, UpperBound: Bound{Type: "Exclusive", Value: 60.0}},
+		MinDesiredFrameRate:     30.0,
+		FixedFrameRate:          120.0,
+		NetClientTicksPerSecond: 120,
+	},
+}
+
 type GameWorldSettings struct {
 	Difficulty                          string  `json:"difficulty"`
 	DayTimeSpeedRate                    float64 `json:"dayTimeSpeedRate"`
