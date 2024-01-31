@@ -80,7 +80,7 @@ var defaultConfig = Config{
 	TotalMemoryGB:             16,                                                          // 16G
 	MemoryCleanupInterval:     1800,                                                        // 内存清理时间间隔，设为半小时（1800秒）0代表不清理
 	RestartInterval:           0,                                                           // 自动重启间隔
-	WhiteCheckTime:            0,                                                           //白名单检查周期
+	WhiteCheckTime:            0,                                                           // 白名单检查周期
 	RegularMessages:           []string{"", ""},                                            // 默认的定期推送消息数组，初始可为空
 	MessageBroadcastInterval:  3600,                                                        // 默认消息广播周期，假设为1小时（3600秒）
 	MaintenanceWarningMessage: "server is going to rebot,please relogin at 1minute later.", // 默认的维护警告消息
@@ -291,7 +291,7 @@ func checkAndSetDefaults(config *Config) bool {
 		fieldName := typ.Field(i).Name
 
 		// 特殊处理RestartInterval字段
-		if fieldName == "RestartInterval" || fieldName == "WhiteCheckTime" {
+		if fieldName == "RestartInterval" || fieldName == "WhiteCheckTime" || fieldName == "MemoryCleanupInterval" || fieldName == "BackupInterval" || fieldName == "MemoryCheckInterval" {
 			continue
 		}
 

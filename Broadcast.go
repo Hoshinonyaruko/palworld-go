@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"math/rand"
+	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -29,7 +31,7 @@ func (task *palworldBroadcast) Schedule() {
 }
 
 func (task *palworldBroadcast) RunpalworldBroadcast() {
-	log.Println("准备进行全服推送...由于帕鲁暂未支持中文，仅支持英文")
+	log.Println("准备进行全服推送...现已支持所有语言broadcast!")
 	// 初始化RCON客户端
 	address := task.Config.Address + ":" + strconv.Itoa(task.Config.WorldSettings.RconPort)
 	rconClient := NewRconClient(address, task.Config.WorldSettings.AdminPassword, task.BackupTask)
@@ -45,11 +47,23 @@ func (task *palworldBroadcast) RunpalworldBroadcast() {
 		// 获取随机选择的消息
 		randomMessage := task.Config.RegularMessages[randomIndex]
 
-		// 如果只有一个消息，则使用它
-		if len(task.Config.RegularMessages) == 1 {
-			Broadcast(randomMessage, rconClient)
+		// 根据task.Config.UseDLL来决定发送方式
+		if task.Config.UseDll {
+			// 使用HTTP请求发送消息
+			base := "http://127.0.0.1:53000/rcon?text="
+			messageText := url.QueryEscape("broadcast " + randomMessage)
+			fullURL := base + messageText
+
+			resp, err := http.Get(fullURL)
+			if err != nil {
+				log.Printf("Error sending HTTP request: %v", err)
+			} else {
+				defer resp.Body.Close()
+				// 这里可以添加对resp的处理逻辑
+				log.Println("Broadcast message sent successfully via HTTP")
+			}
 		} else {
-			// 使用随机选择的消息作为参数调用Broadcast
+			// 使用Broadcast函数发送消息
 			Broadcast(randomMessage, rconClient)
 		}
 	}
