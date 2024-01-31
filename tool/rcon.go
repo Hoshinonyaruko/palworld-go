@@ -124,7 +124,7 @@ func Broadcast(config config.Config, message string) error {
 	// 如果config.Usedll为true，则使用HTTP方式发送消息
 	if config.UseDll {
 		base := "http://127.0.0.1:53000/rcon?text="
-		messageText := "broadcast " + url.QueryEscape(message)
+		messageText := url.QueryEscape("broadcast " + message)
 		fullURL := base + messageText
 
 		// 发送HTTP请求
