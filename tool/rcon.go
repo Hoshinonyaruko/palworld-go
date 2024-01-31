@@ -2,8 +2,12 @@
 package tool
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -117,23 +121,39 @@ func BanPlayer(config config.Config, steamID string) error {
 }
 
 func Broadcast(config config.Config, message string) error {
-	address := config.Address + ":" + strconv.Itoa(config.WorldSettings.RconPort)
-	exec, err := NewExecutor(address, config.WorldSettings.AdminPassword, true)
-	if err != nil {
-		return err
-	}
-	defer exec.Close()
+	// 如果config.Usedll为true，则使用HTTP方式发送消息
+	if config.UseDll {
+		base := "http://127.0.0.1:53000/rcon?text="
+		messageText := "broadcast " + url.QueryEscape(message)
+		fullURL := base + messageText
 
-	message = strings.ReplaceAll(message, " ", "_")
+		// 发送HTTP请求
+		resp, err := http.Get(fullURL)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		// 这里可以添加对resp的处理逻辑
+		log.Println("Broadcast message sent successfully via HTTP")
+		return nil
+	} else {
+		// 原始方法发送
+		address := config.Address + ":" + strconv.Itoa(config.WorldSettings.RconPort)
+		exec, err := NewExecutor(address, config.WorldSettings.AdminPassword, true)
+		if err != nil {
+			return err
+		}
+		defer exec.Close()
 
-	response, err := exec.Execute("Broadcast " + message)
-	if err != nil {
-		return err
+		response, err := exec.Execute("Broadcast " + strings.ReplaceAll(message, " ", "_"))
+		if err != nil {
+			return err
+		}
+		if response != fmt.Sprintf("Broadcasted: %s", message) {
+			return errors.New(response)
+		}
+		return nil
 	}
-	if response != fmt.Sprintf("Broadcasted: %s", message) {
-		return errors.New(response)
-	}
-	return nil
 }
 
 func Shutdown(config config.Config, seconds string, message string) error {
@@ -174,4 +194,46 @@ func DoExit(config config.Config) error {
 		return nil // Hack: Not Tested
 	}
 	return nil
+}
+
+func CheckAndKickPlayers(config config.Config) {
+	if len(config.Players) == 0 {
+		return // 白名单为空时不执行操作
+	}
+
+	apiURL := fmt.Sprintf("http://127.0.0.1:%s/api/player?update=true", config.WebuiPort)
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		log.Printf("获取玩家信息失败: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	var players []PlayerW
+	if err := json.NewDecoder(resp.Body).Decode(&players); err != nil {
+		log.Printf("解析玩家信息失败: %v", err)
+		return
+	}
+
+	for _, player := range players {
+		if player.Online && !isPlayerInWhitelist(player, config.Players) {
+			// 玩家在线但不在白名单，执行踢出操作
+			if err := KickPlayer(config, player.SteamID); err != nil {
+				log.Printf("踢出玩家失败: %v", err)
+			} else {
+				log.Printf("踢出玩家%v成功: %v", player.Name, err)
+			}
+		}
+	}
+}
+
+func isPlayerInWhitelist(player PlayerW, whitelist []*config.PlayerW) bool {
+	for _, wp := range whitelist {
+		if (wp.Name == "" || wp.Name == player.Name) &&
+			(wp.SteamID == "" || wp.SteamID == player.SteamID) &&
+			(wp.PlayerUID == "" || wp.PlayerUID == player.PlayerUID) {
+			return true
+		}
+	}
+	return false
 }

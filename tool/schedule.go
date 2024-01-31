@@ -19,6 +19,13 @@ type Player struct {
 	LastOnline time.Time `json:"last_online"`
 }
 
+type PlayerW struct {
+	Name      string `json:"name"`
+	SteamID   string `json:"steamid"`
+	PlayerUID string `json:"playeruid"`
+	Online    bool   `json:"online"`
+}
+
 func ScheduleTask(db *bbolt.DB, config config.Config) {
 	ticker := time.NewTicker(3 * time.Minute)
 	defer ticker.Stop()
