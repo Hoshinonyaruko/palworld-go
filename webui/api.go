@@ -498,10 +498,10 @@ func restartService(cfg config.Config, kill bool) {
 	} else {
 		exePath = filepath.Join(cfg.GamePath, cfg.ProcessName+".sh")
 		args = []string{
-			"--RconEnabled=True",
-			fmt.Sprintf("--AdminPassword=%s", cfg.WorldSettings.AdminPassword),
-			fmt.Sprintf("--port=%d", cfg.WorldSettings.PublicPort),
-			fmt.Sprintf("--players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
+			"-RconEnabled=True",
+			fmt.Sprintf("-AdminPassword=%s", cfg.WorldSettings.AdminPassword),
+			fmt.Sprintf("-port=%d", cfg.WorldSettings.PublicPort),
+			fmt.Sprintf("-players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
 		}
 	}
 
