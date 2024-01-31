@@ -149,12 +149,32 @@ func main() {
 			for range saveSettingsTicker.C {
 				// 定时保存配置
 				jsonconfig := config.ReadConfigv2()
+				//保存帕鲁服务端配置
 				err := config.WriteGameWorldSettings(&jsonconfig, jsonconfig.WorldSettings)
 				if err != nil {
 					fmt.Println("Error writing game world settings:", err)
 				} else {
 					fmt.Println("Game world settings saved successfully.")
 				}
+				//保存引擎配置
+				err = config.WriteEngineSettings(&jsonconfig, jsonconfig.Engine)
+				if err != nil {
+					fmt.Println("Error writing Engine settings:", err)
+				} else {
+					fmt.Println("Engine settings saved successfully.")
+				}
+			}
+		}()
+	}
+
+	if jsonconfig.RestartInterval != 0 {
+		restartInterval := time.Duration(jsonconfig.RestartInterval) * time.Second
+		restartTicker := time.NewTicker(restartInterval)
+		go func() {
+			defer restartTicker.Stop()
+			for range restartTicker.C {
+				// 定时推送并重启 120秒 发数组第一条信息
+				tool.Shutdown(jsonconfig, "120", jsonconfig.RegularMessages[0])
 			}
 		}()
 	}

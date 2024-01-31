@@ -7,6 +7,7 @@
       <q-tabs v-model="tab" align="justify" scrollable>
         <q-tab name="guard" label="守护配置修改" />
         <q-tab name="server" label="服务端配置修改" />
+        <q-tab name="engine" label="引擎配置修改" />
         <q-tab name="command" label="服务器指令" />
         <q-tab name="player-manage" label="玩家管理" />
         <q-tab name="server-check" label="主机管理" />
@@ -75,6 +76,13 @@
           />
 
           <!-- 数字输入框 -->
+          <q-input
+            filled
+            v-model.number="config.RestartInterval"
+            type="number"
+            label="定时重启服务端（秒）"
+            class="q-my-md"
+          />
           <q-input
             filled
             v-model.number="config.backupInterval"
@@ -645,6 +653,140 @@
             class="q-my-md"
           />
 
+          <!-- 保存按钮 -->
+          <q-btn
+            color="primary"
+            label="保存"
+            @click="saveConfig"
+            class="q-mt-md"
+          />
+          <!-- 重启服务端按钮 -->
+          <q-btn
+            color="secondary"
+            label="重启服务端"
+            @click="restartServer"
+            class="q-mt-md"
+          />
+        </div>
+      </q-page>
+      <q-page padding v-if="tab === 'engine'">
+        <!-- 引擎配置修改页面内容 -->
+        <div class="q-gutter-xs q-mt-md">
+          <div class="text-subtitle2">引擎配置修改</div>
+          <div class="text-subtitle3">默认已为您载入最佳配置</div>
+          <div class="text-subtitle4">请在了解的情况下修改</div>
+
+          <!-- 玩家互联网速度配置 -->
+          <q-input
+            filled
+            v-model.number="config.engine.player.ConfiguredInternetSpeed"
+            type="number"
+            label="玩家互联网速度 (字节/秒)"
+            hint="设置假定的玩家互联网速度。高值可以减少带宽限制的可能性。"
+            class="q-my-md"
+          />
+
+          <!-- 玩家局域网速度配置 -->
+          <q-input
+            filled
+            v-model.number="config.engine.player.ConfiguredLanSpeed"
+            type="number"
+            label="玩家局域网速度 (字节/秒)"
+            hint="设置局域网速度，确保局域网玩家可以利用最大的网络容量。"
+            class="q-my-md"
+          />
+
+          <!-- 最大客户端数据传输速率 -->
+          <q-input
+            filled
+            v-model.number="config.engine.socketsubsystemepic.MaxClientRate"
+            type="number"
+            label="最大客户端数据传输速率 (字节/秒)"
+            hint="为所有连接设置每个客户端的最大数据传输速率，设置高值以防止数据上限。"
+            class="q-my-md"
+          />
+
+          <!-- 特别针对互联网客户端的最大数据传输速率 -->
+          <q-input
+            filled
+            v-model.number="
+              config.engine.socketsubsystemepic.MaxInternetClientRate
+            "
+            type="number"
+            label="互联网客户端最大数据传输速率 (字节/秒)"
+            hint="特别针对互联网客户端，允许高容量数据传输而不受限制。"
+            class="q-my-md"
+          />
+
+          <!-- 游戏引擎平滑帧率设置 -->
+          <q-toggle
+            v-model="config.engine.engine.bSmoothFrameRate"
+            label="启用平滑帧率"
+            hint="使游戏引擎平滑帧率波动，以获得更一致的游戏体验。"
+            class="q-my-md"
+          />
+
+          <!-- 禁用固定帧率设置 -->
+          <q-toggle
+            v-model="config.engine.engine.bUseFixedFrameRate"
+            label="启用动态帧率"
+            hint="动态帧率，允许游戏服务端动态调整帧率以获得最佳性能。"
+            class="q-my-md"
+          />
+
+          <!-- 最低可接受帧率设置 -->
+          <q-input
+            filled
+            v-model.number="config.engine.engine.MinDesiredFrameRate"
+            type="number"
+            label="最低可接受帧率"
+            hint="指定最低可接受帧率，确保游戏至少以这个帧率流畅运行。"
+            class="q-my-md"
+          />
+
+          <!-- 平滑帧率范围的下限 -->
+          <q-input
+            filled
+            v-model.number="
+              config.engine.engine.SmoothedFrameRateRange.LowerBound.Value
+            "
+            type="number"
+            label="平滑帧率范围下限"
+            hint="设置平滑的目标帧率下限。"
+            class="q-my-md"
+          />
+
+          <!-- 平滑帧率范围的上限 -->
+          <q-input
+            filled
+            v-model.number="
+              config.engine.engine.SmoothedFrameRateRange.UpperBound.Value
+            "
+            type="number"
+            label="平滑帧率范围上限"
+            hint="设置平滑的目标帧率上限。"
+            class="q-my-md"
+          />
+
+          <!-- 固定帧率配置 -->
+          <q-input
+            filled
+            v-model.number="config.engine.engine.FixedFrameRate"
+            type="number"
+            label="固定帧率"
+            hint="设置固定帧率的值（仅当启用固定帧率时有效）。"
+            class="q-my-md"
+          />
+
+          <!-- 客户端更新频率设置 -->
+          <q-input
+            filled
+            v-model.number="config.engine.engine.NetClientTicksPerSecond"
+            type="number"
+            label="客户端更新频率 (次/秒)"
+            hint="增加客户端的更新频率，提高响应性并减少延迟。"
+            class="q-my-md"
+          />
           <!-- 保存按钮 -->
           <q-btn
             color="primary"

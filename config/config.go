@@ -3,10 +3,12 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -31,6 +33,7 @@ type Config struct {
 	ServerOptions             []string           `json:"serverOptions"`             // 服务器启动参数
 	CheckInterval             int                `json:"checkInterval"`             // 进程存活检查时间（秒）
 	BackupInterval            int                `json:"backupInterval"`            // 备份间隔（秒）
+	RestartInterval           int                `json:"RestartInterval"`           // 自动重启服务器（秒）
 	MemoryCheckInterval       int                `json:"memoryCheckInterval"`       // 内存占用检测时间（秒）
 	MemoryUsageThreshold      float64            `json:"memoryUsageThreshold"`      // 重启阈值（百分比）
 	TotalMemoryGB             int                `json:"totalMemoryGB"`             // 当前服务器总内存
@@ -39,6 +42,7 @@ type Config struct {
 	MessageBroadcastInterval  int                `json:"messageBroadcastInterval"`  // 消息广播周期（秒）
 	MaintenanceWarningMessage string             `json:"maintenanceWarningMessage"` // 维护警告消息
 	WorldSettings             *GameWorldSettings `json:"worldSettings"`             // 帕鲁设定
+	Engine                    *Engine            `json:"engine"`                    // 服务端引擎设置
 }
 
 // 默认配置
@@ -59,11 +63,32 @@ var defaultConfig = Config{
 	BackupInterval:            1800,                                                        // 30 分钟
 	MemoryCheckInterval:       60,                                                          // 60 秒
 	MemoryUsageThreshold:      90,                                                          // 90%
-	TotalMemoryGB:             16,                                                          //16G
-	MemoryCleanupInterval:     0,                                                           // 内存清理时间间隔，设为半小时（1800秒）0代表不清理
+	TotalMemoryGB:             16,                                                          // 16G
+	MemoryCleanupInterval:     1800,                                                        // 内存清理时间间隔，设为半小时（1800秒）0代表不清理
+	RestartInterval:           0,                                                           // 自动重启间隔
 	RegularMessages:           []string{""},                                                // 默认的定期推送消息数组，初始可为空
 	MessageBroadcastInterval:  3600,                                                        // 默认消息广播周期，假设为1小时（3600秒）
 	MaintenanceWarningMessage: "server is going to rebot,please relogin at 1minute later.", // 默认的维护警告消息
+}
+
+// Engine 默认配置
+var defaultEngine = Engine{
+	Player: PlayerConfig{
+		ConfiguredInternetSpeed: 104857600,
+		ConfiguredLanSpeed:      104857600,
+	},
+	SocketSubsystemEpic: SocketSubsystemEpicConfig{
+		MaxClientRate:         104857600,
+		MaxInternetClientRate: 104857600,
+	},
+	EngineConfig: EngineConfig{
+		BSmoothFrameRate:        true,
+		BUseFixedFrameRate:      false,
+		SmoothedFrameRateRange:  FrameRateRange{LowerBound: Bound{Type: "Inclusive", Value: 30.0}, UpperBound: Bound{Type: "Exclusive", Value: 60.0}},
+		MinDesiredFrameRate:     30.0,
+		FixedFrameRate:          120.0,
+		NetClientTicksPerSecond: 120,
+	},
 }
 
 type GameWorldSettings struct {
@@ -129,6 +154,47 @@ type GameWorldSettings struct {
 	Region                              string  `json:"region"`
 	UseAuth                             bool    `json:"useAuth"`
 	BanListURL                          string  `json:"banListURL"`
+}
+
+// Engine is the top-level structure representing the configuration.
+type Engine struct {
+	Player              PlayerConfig              `json:"player"`
+	SocketSubsystemEpic SocketSubsystemEpicConfig `json:"socketsubsystemepic"`
+	EngineConfig        EngineConfig              `json:"engine"`
+}
+
+// PlayerConfig represents the configuration for the player.
+type PlayerConfig struct {
+	ConfiguredInternetSpeed int `json:"ConfiguredInternetSpeed"`
+	ConfiguredLanSpeed      int `json:"ConfiguredLanSpeed"`
+}
+
+// SocketSubsystemEpicConfig represents the configuration for the socket subsystem.
+type SocketSubsystemEpicConfig struct {
+	MaxClientRate         int `json:"MaxClientRate"`
+	MaxInternetClientRate int `json:"MaxInternetClientRate"`
+}
+
+// EngineConfig represents the configuration for the engine.
+type EngineConfig struct {
+	BSmoothFrameRate        bool           `json:"bSmoothFrameRate"`
+	BUseFixedFrameRate      bool           `json:"bUseFixedFrameRate"`
+	SmoothedFrameRateRange  FrameRateRange `json:"SmoothedFrameRateRange"`
+	MinDesiredFrameRate     float64        `json:"MinDesiredFrameRate"`
+	FixedFrameRate          float64        `json:"FixedFrameRate"`
+	NetClientTicksPerSecond int            `json:"NetClientTicksPerSecond"`
+}
+
+// FrameRateRange represents a range of frame rates.
+type FrameRateRange struct {
+	LowerBound Bound `json:"LowerBound"`
+	UpperBound Bound `json:"UpperBound"`
+}
+
+// Bound represents a boundary in a frame rate range.
+type Bound struct {
+	Type  string  `json:"Type"`
+	Value float64 `json:"Value"`
 }
 
 // 配置文件路径
@@ -206,8 +272,8 @@ func checkAndSetDefaults(config *Config) bool {
 
 		fieldName := typ.Field(i).Name
 
-		// 特殊处理MemoryCleanupInterval字段
-		if fieldName == "MemoryCleanupInterval" {
+		// 特殊处理RestartInterval字段
+		if fieldName == "RestartInterval" {
 			continue
 		}
 
@@ -344,6 +410,26 @@ func AutoConfigurePaths(config *Config) error {
 			return err
 		}
 	}
+	engine, err := ReadEngineSettings(config)
+	if err != nil {
+		log.Printf("解析游戏engine.ini出错,错误%v", err)
+
+	} else {
+		config.Engine = engine
+		log.Println("从游戏engine.ini解析配置成功.")
+		log.Printf("从游戏engine.ini解析配置成功.%v", config.Engine)
+
+		// 将更新后的配置写回文件
+		updatedConfig, err := json.MarshalIndent(config, "", "  ")
+		if err != nil {
+			return err
+		}
+		err = os.WriteFile("config.json", updatedConfig, 0644)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -566,4 +652,270 @@ func WriteGameWorldSettings(config *Config, settings *GameWorldSettings) error {
 
 	// 保存修改后的INI文件
 	return cfg.SaveTo(iniPath)
+}
+
+// ReadEngineSettings 读取并解析引擎的INI配置文件
+func ReadEngineSettings(config *Config) (*Engine, error) {
+	var iniPath string
+
+	// 根据操作系统选择不同的路径
+	switch runtime.GOOS {
+	case "windows":
+		iniPath = filepath.Join(config.GameSavePath, "Config", "WindowsServer", "Engine.ini")
+	case "linux":
+		iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "Engine.ini")
+	default:
+		iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "Engine.ini")
+	}
+
+	// 检查INI文件是否存在，如果不存在则创建
+	if _, err := os.Stat(iniPath); os.IsNotExist(err) {
+		file, err := os.Create(iniPath)
+		if err != nil {
+			return nil, err
+		}
+		file.Close()
+		fmt.Printf("创建了新的INI文件: %s\n", iniPath)
+	}
+
+	// 加载INI文件
+	cfg, err := ini.Load(iniPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// 初始化Engine结构体
+	engine := new(Engine)
+
+	sectionName := "/script/engine.player"
+	_, err = cfg.GetSection(sectionName)
+	if err != nil {
+		engine := &defaultEngine
+		fmt.Printf("为您加载了网路配置优化参数,提升服务器FPS(包速率)\n")
+		return engine, nil
+	}
+	sectionName = "/script/socketsubsystemepic.epicnetdriver"
+	_, err = cfg.GetSection(sectionName)
+	if err != nil {
+		engine := &defaultEngine
+		fmt.Printf("为您加载了网路配置优化参数,提升服务器FPS(包速率)\n")
+		return engine, nil
+	}
+	sectionName = "/script/engine.engine"
+	_, err = cfg.GetSection(sectionName)
+	if err != nil {
+		engine := &defaultEngine
+		fmt.Printf("为您加载了网路配置优化参数,提升服务器FPS(包速率)\n")
+		return engine, nil
+	}
+
+	// 解析各个section到对应的结构体中
+	if err := cfg.Section("/script/engine.player").MapTo(&engine.Player); err != nil {
+		return nil, err
+	}
+	if err := cfg.Section("/script/socketsubsystemepic.epicnetdriver").MapTo(&engine.SocketSubsystemEpic); err != nil {
+		return nil, err
+	}
+	if err := cfg.Section("/script/engine.engine").MapTo(&engine.EngineConfig); err != nil {
+		return nil, err
+	}
+
+	// 手动解析SmoothedFrameRateRange字段
+	smoothedFrameRateRangeStr := cfg.Section("/script/engine.engine").Key("SmoothedFrameRateRange").String()
+	if smoothedFrameRateRangeStr != "" {
+		frameRateRange, err := parseFrameRateRange(smoothedFrameRateRangeStr)
+		if err != nil {
+			return nil, fmt.Errorf("parsing SmoothedFrameRateRange failed: %w", err)
+		}
+		engine.EngineConfig.SmoothedFrameRateRange = frameRateRange
+	}
+
+	// 手动设置bSmoothFrameRate和bUseFixedFrameRate字段
+	engine.EngineConfig.BSmoothFrameRate = cfg.Section("/script/engine.engine").Key("bSmoothFrameRate").MustBool(false)
+	engine.EngineConfig.BUseFixedFrameRate = cfg.Section("/script/engine.engine").Key("bUseFixedFrameRate").MustBool(false)
+
+	return engine, nil
+}
+
+// formatFrameRateRange 格式化FrameRateRange字段
+func formatFrameRateRange(frr FrameRateRange) string {
+	return fmt.Sprintf("(LowerBound=(Type=%s,Value=%.6f),UpperBound=(Type=%s,Value=%.6f))",
+		frr.LowerBound.Type, frr.LowerBound.Value, frr.UpperBound.Type, frr.UpperBound.Value)
+}
+
+func parseFrameRateRange(s string) (FrameRateRange, error) {
+	var frr FrameRateRange
+	var lbType, ubType string
+	var lbValue, ubValue float64
+
+	// 使用正则表达式来解析字符串
+	pattern := `\((LowerBound=\(Type=(\w+),Value=([0-9.]+)\)),(UpperBound=\(Type=(\w+),Value=([0-9.]+)\))\)`
+	re := regexp.MustCompile(pattern)
+	matches := re.FindStringSubmatch(s)
+
+	if len(matches) != 7 {
+		return frr, fmt.Errorf("invalid format")
+	}
+
+	// 提取数据
+	lbType, lbValueStr, ubType, ubValueStr := matches[2], matches[3], matches[5], matches[6]
+
+	// 将字符串值转换为float64
+	var err error
+	lbValue, err = strconv.ParseFloat(lbValueStr, 64)
+	if err != nil {
+		return frr, err
+	}
+	ubValue, err = strconv.ParseFloat(ubValueStr, 64)
+	if err != nil {
+		return frr, err
+	}
+
+	// 构造FrameRateRange结构体
+	frr = FrameRateRange{
+		LowerBound: Bound{Type: lbType, Value: lbValue},
+		UpperBound: Bound{Type: ubType, Value: ubValue},
+	}
+
+	return frr, nil
+}
+
+// WriteEngineSettings 将Engine结构体的数据写入INI文件
+func WriteEngineSettings(config *Config, engine *Engine) error {
+	var iniPath string
+
+	// 根据操作系统选择不同的路径
+	switch runtime.GOOS {
+	case "windows":
+		iniPath = filepath.Join(config.GameSavePath, "Config", "WindowsServer", "Engine.ini")
+	case "linux":
+		iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "Engine.ini")
+	default:
+		iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "Engine.ini")
+	}
+
+	// 读取INI文件的所有内容
+	fileContent, err := ioutil.ReadFile(iniPath)
+	if err != nil {
+		return err
+	}
+
+	// 将文件内容转换为字符串
+	content := string(fileContent)
+
+	// 更新content字符串中的特定section
+	content = updateIniSection(content, "/script/engine.player", &engine.Player)
+	content = updateIniSection(content, "/script/socketsubsystemepic.epicnetdriver", &engine.SocketSubsystemEpic)
+	content = updateIniSection(content, "/script/engine.engine", &engine.EngineConfig)
+
+	// 将更新后的内容写回文件
+	return os.WriteFile(iniPath, []byte(content), 0644)
+}
+
+// updateIniSection 更新或添加INI文件中的特定section
+func updateIniSection(content, sectionName string, data interface{}) string {
+	// 将结构体转换为键值对映射
+	kvMap := structToMap(data)
+
+	var updatedLines []string
+	inSection := false
+	sectionExists := false
+	lines := strings.Split(content, "\n")
+
+	for _, line := range lines {
+		// 检查是否进入或离开目标section
+		if strings.HasPrefix(line, "["+sectionName+"]") {
+			inSection = true
+			sectionExists = true
+			updatedLines = append(updatedLines, line)
+			continue
+		} else if strings.HasPrefix(line, "[") && inSection {
+			// 已离开目标section
+			inSection = false
+		}
+
+		if inSection {
+			// 在目标section内部，处理键值对
+			keyValue := strings.SplitN(line, "=", 2)
+			if len(keyValue) == 2 {
+				key := keyValue[0]
+				if _, exists := kvMap[key]; exists {
+					// 替换现有键值对
+					updatedLines = append(updatedLines, key+"="+fmt.Sprintf("%v", kvMap[key]))
+					delete(kvMap, key) // 从映射中移除该键
+					continue
+				}
+			}
+		}
+
+		// 不是目标section或者键不存在，则保留原始行
+		updatedLines = append(updatedLines, line)
+	}
+
+	// 如果section不存在，添加新section及其键值对
+	if !sectionExists {
+		updatedLines = append(updatedLines, "["+sectionName+"]")
+		for key, value := range kvMap {
+			updatedLines = append(updatedLines, key+"="+fmt.Sprintf("%v", value))
+		}
+	}
+
+	return strings.Join(updatedLines, "\n")
+}
+
+// 解释一下，为什么要从头实现ini解析，因为游戏engine配置中的节对应了多个，重复名称的paths项，所以无法通过go的iniv1包解析，否则这些重复项会归一
+func structToMap(data interface{}) map[string]string {
+	kvMap := make(map[string]string)
+	v := reflect.ValueOf(data)
+
+	if v.Kind() == reflect.Ptr && v.Elem().Kind() == reflect.Struct {
+		v = v.Elem()
+	} else {
+		log.Println("Data is not a pointer to a struct")
+		return kvMap
+	}
+
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		fieldType := field.Type()
+
+		// 特殊处理FrameRateRange
+		if t.Field(i).Name == "SmoothedFrameRateRange" {
+			if fieldType.Kind() == reflect.Struct {
+				fr, ok := field.Interface().(FrameRateRange)
+				if ok {
+					kvMap["SmoothedFrameRateRange"] = formatFrameRateRange(fr)
+				} else {
+					log.Printf("Field %s is not of type FrameRateRange\n", t.Field(i).Name)
+				}
+			}
+			continue
+		}
+
+		key := t.Field(i).Tag.Get("json")
+		if key == "" {
+			key = t.Field(i).Name
+		}
+
+		var value string
+		switch field.Kind() {
+		case reflect.String:
+			value = field.String()
+		case reflect.Int, reflect.Int64:
+			value = fmt.Sprintf("%d", field.Int())
+		case reflect.Float64:
+			value = fmt.Sprintf("%.6f", field.Float())
+		case reflect.Bool:
+			value = fmt.Sprintf("%t", field.Bool())
+		default:
+			log.Printf("Unsupported type for field %s\n", t.Field(i).Name)
+			continue
+		}
+
+		kvMap[key] = value
+		//log.Printf("Processed field: %s, Value: %s\n", key, value)
+	}
+
+	return kvMap
 }

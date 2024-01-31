@@ -79,6 +79,8 @@ However, you are free to use the built-in web page translation features of vario
 
 Should you encounter any issues, please feel free to submit an issue in any language.
 
+交流群:955320532 587997911
+
 本项目的webui特别对移动端设备进行优化，手机使用更轻松
 （老版本iossafari 如果遇到按钮点不动刷新页面再点即可）
 
@@ -122,8 +124,20 @@ webui默认地址:http://127.0.0.1:8000
 
 ![机器人管理](pic/10.png)
 
+![引擎配置管理](pic/11.png)
+
 ## 兼容性
 windows通过了测试，linux有待测试
+
+## RCON发送中文
+
+内置了
+
+https://github.com/VeroFess/PalWorld-Server-Unoffical-Api/releases/tag/previev-0.0.2
+
+开启-守护配置修改-自动注入DLL 可在palworld命令行使用 Broadcast 中文
+
+完全是得益于VeroFess的开发，palgo面板只是自动做了载入。
 
 ## 场景支持
 
@@ -132,3 +146,20 @@ windows通过了测试，linux有待测试
 内存不足的时候，通过rcon通知服务器成员，然后重启服务器
 
 通过调用微软的rammap释放无用内存，并将有用内存转移至虚拟内存，实现一次释放50%+内存
+
+## 贴心提示
+
+如果启动自动注入UE4SS和可输入命令控制台DLL后游戏服务端无法启动
+
+请定位到"\PalServer\Pal\Binaries\Win64\UE4SS-settings.ini"
+
+打开，定位到GraphicsAPI，修改为dx11
+; The API that will be used to render the GUI debug window.
+
+; Valid values (case-insensitive): dx11, d3d11, opengl
+
+; Default: opengl
+
+GraphicsAPI = dx11
+
+或设置Debug 配置项 3个值 全部为0
