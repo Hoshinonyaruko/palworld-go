@@ -62,7 +62,7 @@ func HandleMemoryUsage(threshold float64, RconClient *RconClient, config config.
 	if config.UseDll {
 		// 构建请求的URL
 		base := "http://127.0.0.1:53000/rcon?text="
-		message := "broadcast " + url.QueryEscape(config.MaintenanceWarningMessage)
+		message := url.QueryEscape("broadcast " + config.MaintenanceWarningMessage)
 		fullURL := base + message
 
 		// 发送HTTP请求
