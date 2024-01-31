@@ -10,6 +10,7 @@
         <q-tab name="engine" label="引擎配置修改" />
         <q-tab name="command" label="服务器指令" />
         <q-tab name="player-manage" label="玩家管理" />
+        <q-tab name="player-white" label="玩家白名单" />
         <q-tab name="advanced" label="SAV修改" @click="redirectToSav" />
         <q-tab name="server-check" label="主机管理" />
         <q-tab name="save-manage" label="存档管理" />
@@ -583,13 +584,6 @@
             label="合作玩家最大数量"
             class="q-my-md"
           />
-          <q-input
-            filled
-            v-model.number="config.worldSettings.serverPlayerMaxNum"
-            type="number"
-            label="服务器玩家最大数量"
-            class="q-my-md"
-          />
 
           <!-- 开关 -->
           <q-toggle
@@ -871,6 +865,70 @@
       <q-page padding v-if="tab === 'player-manage'">
         <player-manage />
       </q-page>
+      <q-page padding v-if="tab === 'player-white'">
+        <!-- 白名单配置修改页面内容 -->
+        <div class="q-gutter-xs q-mt-md">
+          <div class="text-subtitle2">白名单配置修改</div>
+          <div class="q-my-md">
+            <div class="text-h6">白名单玩家</div>
+            <!-- 保存按钮 -->
+            <q-btn
+              color="primary"
+              label="保存"
+              @click="saveConfig"
+              class="q-mt-md"
+            />
+            <q-input
+              filled
+              v-model.number="config.whiteCheckTime"
+              type="number"
+              label="白名单检查频率 (秒/次)"
+              hint="检查服务器内是否有不包含白名单的玩家并踢出."
+              class="q-my-md"
+            />
+            <div
+              v-for="(player, index) in config.players"
+              :key="index"
+              class="q-mb-sm row items-center"
+            >
+              <q-input
+                filled
+                v-model="player.name"
+                label="玩家名"
+                dense
+                class="col-3 q-mr-md"
+              />
+              <q-input
+                filled
+                v-model="player.steamid"
+                label="SteamID (可选)"
+                dense
+                class="col-3 q-mr-md"
+              />
+              <q-input
+                filled
+                v-model="player.playeruid"
+                label="PlayerUID (可选)"
+                dense
+                class="col-3 q-mr-md"
+              />
+              <q-btn
+                flat
+                icon="delete"
+                @click="removePlayer(index)"
+                class="q-ml-md"
+              />
+            </div>
+            <q-btn
+              flat
+              icon="add"
+              @click="addPlayer"
+              label="添加玩家"
+              class="q-mt-md"
+            />
+          </div>
+        </div>
+      </q-page>
       <q-page padding v-if="tab === 'server-check'">
         <div class="text-h6">服务器检测页面</div>
         <running-process-status
@@ -903,6 +961,8 @@ import BotManage from 'components/BotManage.vue';
 const props = defineProps({
   uin: Number,
 });
+
+const players = ref([]);
 
 const status = ref(null); // 假设 ProcessInfo 是一个对象，这里使用 null 作为初始值
 
@@ -963,6 +1023,14 @@ const addMessageServerOptions = () => {
 const removeMessageServerOptions = (index) => {
   config.value.serverOptions.splice(index, 1);
 };
+
+function addPlayer() {
+  config.value.players.push({ name: '', steamid: '', playeruid: '' });
+}
+
+function removePlayer(index) {
+  config.value.players.splice(index, 1);
+}
 
 onMounted(async () => {
   try {
@@ -1059,7 +1127,7 @@ onUnmounted(() => {
 const commands2 = [
   { label: '关闭服务器', prefix: 'Shutdown {Seconds} {MessageText}' },
   { label: '强制关闭', prefix: 'DoExit' },
-  { label: '广播', prefix: 'Broadcast {MessageText}' },
+  { label: '广播', prefix: 'broadcast {MessageText}' },
   { label: '踢人', prefix: 'KickPlayer {SteamID}' },
   { label: '禁止玩家进入', prefix: 'BanPlayer {SteamID}' },
   { label: '传送', prefix: 'TeleportToPlayer {SteamID}' },
@@ -1073,7 +1141,7 @@ const commands2 = [
 const commands = [
   { label: '关闭服务器', prefix: 'Shutdown ' },
   { label: '强制关闭', prefix: 'DoExit' },
-  { label: '广播', prefix: 'Broadcast ' },
+  { label: '广播', prefix: 'broadcast ' },
   { label: '踢人', prefix: 'KickPlayer ' },
   { label: '禁止玩家进入', prefix: 'BanPlayer ' },
   { label: '传送', prefix: 'TeleportToPlayer ' },

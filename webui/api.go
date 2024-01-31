@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,6 +40,7 @@ type Player struct {
 	SteamID    string    `json:"steamid"`
 	PlayerUID  string    `json:"playeruid"`
 	LastOnline time.Time `json:"last_online"`
+	Online     bool      `json:"online"`
 }
 
 type Client struct {
@@ -285,14 +287,37 @@ func (c *Client) readPump(config config.Config) {
 			log.Println("RCON客户端初始化失败,无法处理webui面板请求,请按教程正确开启rcon和设置服务端admin密码")
 			return
 		}
-		response, err := rconClient.Conn.Execute(string(message))
-		if err != nil {
-			log.Printf("RCON execute error: %v", err)
-			continue
+		// 检查消息是否以"Broadcast"开头 且注入了DLL 可以使用第三方rcon
+		if strings.HasPrefix(string(message), "broadcast") && config.UseDll {
+			// 使用本地方式发送
+			base := "http://127.0.0.1:53000/rcon?text="
+			messageText := url.QueryEscape(string(message))
+			fullURL := base + messageText
+
+			// 发送HTTP请求
+			resp, err := http.Get(fullURL)
+			if err != nil {
+				log.Printf("Error sending HTTP request: %v", err)
+				return
+			}
+			defer resp.Body.Close()
+			// 可以添加更多的响应处理逻辑
+			log.Println("Message sent successfully via HTTP")
+		} else {
+			// 使用原始方式发送
+			response, err := rconClient.Conn.Execute(string(message))
+			if err != nil {
+				log.Printf("Error sending message: %v", err)
+			}
+			if err != nil {
+				log.Printf("RCON execute error: %v", err)
+				continue
+			}
+			c.send <- response
 		}
-		c.send <- response
 	}
 }
+
 func (c *Client) writePump() {
 	defer func() {
 		c.conn.Close()
