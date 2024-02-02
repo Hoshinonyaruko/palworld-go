@@ -827,33 +827,47 @@ func updateIniSection(content, sectionName string, data interface{}) string {
 	lines := strings.Split(content, "\n")
 
 	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
 		// 检查是否进入或离开目标section
-		if strings.HasPrefix(line, "["+sectionName+"]") {
+		if strings.HasPrefix(trimmedLine, "["+sectionName+"]") {
 			inSection = true
 			sectionExists = true
 			updatedLines = append(updatedLines, line)
 			continue
-		} else if strings.HasPrefix(line, "[") && inSection {
-			// 已离开目标section
+		} else if strings.HasPrefix(trimmedLine, "[") && inSection {
 			inSection = false
+			// 在离开目标section之前，添加任何剩余的键值对
+			for key, value := range kvMap {
+				updatedLines = append(updatedLines, key+"="+fmt.Sprintf("%v", value))
+			}
+			kvMap = make(map[string]string) // 清空kvMap，防止重复添加
 		}
 
 		if inSection {
-			// 在目标section内部，处理键值对
-			keyValue := strings.SplitN(line, "=", 2)
+			keyValue := strings.SplitN(trimmedLine, "=", 2)
 			if len(keyValue) == 2 {
-				key := keyValue[0]
+				key := strings.TrimSpace(keyValue[0])
+				// 如果键存在于kvMap中，则替换；否则保留原行
 				if _, exists := kvMap[key]; exists {
-					// 替换现有键值对
 					updatedLines = append(updatedLines, key+"="+fmt.Sprintf("%v", kvMap[key]))
 					delete(kvMap, key) // 从映射中移除该键
-					continue
+				} else {
+					updatedLines = append(updatedLines, line)
 				}
+			} else {
+				// 对于不是键值对的行（可能是注释等），直接保留
+				updatedLines = append(updatedLines, line)
 			}
+		} else if !inSection {
+			updatedLines = append(updatedLines, line)
 		}
+	}
 
-		// 不是目标section或者键不存在，则保留原始行
-		updatedLines = append(updatedLines, line)
+	// 如果section存在但循环结束后kvMap中还有数据，则在section的末尾添加它们
+	if inSection && len(kvMap) > 0 {
+		for key, value := range kvMap {
+			updatedLines = append(updatedLines, key+"="+fmt.Sprintf("%v", value))
+		}
 	}
 
 	// 如果section不存在，添加新section及其键值对
