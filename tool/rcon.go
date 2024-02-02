@@ -216,7 +216,7 @@ func CheckAndKickPlayers(config config.Config) {
 	}
 
 	for _, player := range players {
-		if player.Online && !isPlayerInWhitelist(player, config.Players) {
+		if player.Online && !IsPlayerInWhitelist(player, config.Players) {
 			// 玩家在线但不在白名单，执行踢出操作
 			if err := KickPlayer(config, player.SteamID); err != nil {
 				log.Printf("踢出玩家失败: %v", err)
@@ -227,7 +227,7 @@ func CheckAndKickPlayers(config config.Config) {
 	}
 }
 
-func isPlayerInWhitelist(player PlayerW, whitelist []*config.PlayerW) bool {
+func IsPlayerInWhitelist(player PlayerW, whitelist []*config.PlayerW) bool {
 	for _, wp := range whitelist {
 		if (wp.Name == "" || wp.Name == player.Name) &&
 			(wp.SteamID == "" || wp.SteamID == player.SteamID) &&

@@ -59,6 +59,12 @@ type KickOrBanRequest struct {
 	Type      string `json:"type"`
 }
 
+type AddWhiteRequest struct {
+	PlayerUID string `json:"playeruid"`
+	SteamID   string `json:"steamid"`
+	Name      string `json:"name"`
+}
+
 // ChangeSaveRequest 用于解析请求体
 type ChangeSaveRequest struct {
 	Path string `json:"path"`
@@ -194,6 +200,21 @@ func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 			// 处理 /restartlater 的POST请求 过一段时间重启
 			if c.Request.URL.Path == "/api/restartlater" && c.Request.Method == http.MethodPost {
 				handleRestartLater(c, config)
+				return
+			}
+			// 处理 /update 的POST请求 更新服务端
+			if c.Request.URL.Path == "/api/update" && c.Request.Method == http.MethodPost {
+				handleUpdate(c, config)
+				return
+			}
+			// 处理 /addwhite 的POST请求
+			if c.Request.URL.Path == "/api/addwhite" && c.Request.Method == http.MethodPost {
+				handleAddWhite(c, &config)
+				return
+			}
+			// 处理 /api/restartself 的POST请求
+			if c.Request.URL.Path == "/api/restartself" && c.Request.Method == http.MethodGet {
+				HandleRestartSelf(c, config)
 				return
 			}
 
@@ -388,6 +409,27 @@ func HandleSaveJSON(c *gin.Context, cfg config.Config) {
 	//重启自身 很快 唰的一下
 	sys.RestartApplication()
 
+}
+
+func HandleRestartSelf(c *gin.Context, cfg config.Config) {
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	// Cookie验证通过后，执行重启操作
+	c.JSON(http.StatusOK, gin.H{"message": "Restart initiated"})
+	//重启自身 很快 唰的一下
+	sys.RestartApplication()
 }
 
 func HandleRestart(c *gin.Context, cfg config.Config) {
@@ -1162,4 +1204,152 @@ func handleRestartLater(c *gin.Context, config config.Config) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Restart scheduled successfully"})
+}
+
+// handleUpdate 处理 /api/update 的POST请求
+func handleUpdate(c *gin.Context, config config.Config) {
+	// 首先检查是否为Windows系统
+	if runtime.GOOS != "windows" {
+		handleUpdateLinux(c, config)
+		return
+	}
+
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	// 终止当前服务器进程
+	if err := sys.KillProcess(); err != nil {
+		log.Printf("Failed to stop the server for update: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to stop the server for update"})
+	}
+
+	// 在PowerShell中执行更新脚本
+	err = tool.CreateAndRunPSScript(config)
+	if err != nil {
+		log.Printf("Failed to execute update script: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to execute update script"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Update initiated successfully"})
+}
+
+// handleUpdateLinux 处理Linux系统上的/api/update的POST请求
+func handleUpdateLinux(c *gin.Context, cfg config.Config) {
+	// 检查是否为Linux系统
+	if runtime.GOOS != "linux" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Update only supported on Linux"})
+		return
+	}
+
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	// 终止游戏服务
+	stopCmd := exec.Command("sudo", "systemctl", "stop", "pal-server")
+	if err := stopCmd.Run(); err != nil {
+		log.Printf("Failed to stop the server for update: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to stop the server for update"})
+	}
+
+	// 更新游戏，假设已经切换至root用户或有足够权限执行
+	updateCmd := exec.Command("sh", "-c", "wget -O - https://pal.pet/update_ubuntu.sh | bash")
+	if err := updateCmd.Run(); err != nil {
+		log.Printf("Failed to execute update script: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to execute update script"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Update initiated successfully"})
+}
+
+func handleAddWhite(c *gin.Context, cfg *config.Config) {
+	var req AddWhiteRequest
+
+	// 绑定JSON请求体到req
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	// 处理特殊值 "<null/err>"
+	if req.Name == "<null/err>" {
+		req.Name = ""
+	}
+	if req.SteamID == "<null/err>" {
+		req.SteamID = ""
+	}
+	if req.PlayerUID == "<null/err>" {
+		req.PlayerUID = ""
+	}
+
+	// 创建PlayerW对象
+	player := &config.PlayerW{
+		Name:      req.Name,
+		SteamID:   req.SteamID,
+		PlayerUID: req.PlayerUID,
+	}
+
+	// 检查玩家是否已在白名单中
+	found := false
+	for i, wp := range cfg.Players {
+		if IsPlayerInWhitelist(player, cfg.Players) {
+			// 如果找到相同玩家，检查信息是否完全相同
+			if wp.Name != player.Name || wp.SteamID != player.SteamID || wp.PlayerUID != player.PlayerUID {
+				// 更新玩家信息
+				cfg.Players[i] = player
+				c.JSON(http.StatusOK, gin.H{"message": "Player information updated successfully"})
+			} else {
+				// 玩家信息完全相同，不需要更新
+				c.JSON(http.StatusOK, gin.H{"message": "Player already in whitelist with same information"})
+			}
+			found = true
+			break
+		}
+	}
+
+	// 如果玩家不在白名单中，添加玩家
+	if !found {
+		cfg.Players = append(cfg.Players, player)
+		c.JSON(http.StatusOK, gin.H{"message": "Player added to whitelist successfully"})
+	}
+
+	// 调用saveFunc来保存config
+	writeConfigToFile(*cfg)
+
+	// 重启自身 很快 唰的一下
+	// sys.RestartApplication()
+}
+
+func IsPlayerInWhitelist(player *config.PlayerW, whitelist []*config.PlayerW) bool {
+	for _, wp := range whitelist {
+		if (wp.Name == "" || wp.Name == player.Name) &&
+			(wp.SteamID == "" || wp.SteamID == player.SteamID) &&
+			(wp.PlayerUID == "" || wp.PlayerUID == player.PlayerUID) {
+			return true
+		}
+	}
+	return false
 }

@@ -83,7 +83,8 @@ async function login() {
       isLoggedIn.value = true;
       void $router.push('/index');
     } else {
-      loginError.value = '登录失败，请检查用户名和密码。';
+      loginError.value =
+        '登录失败，请检查用户名和密码。请查看程序窗口输出的用户名密码，或在同目录下config.json中搜索：serverName、adminPassword 对应用户名，密码。';
       // 显示通知
       $q.notify({
         color: 'negative',
@@ -93,7 +94,8 @@ async function login() {
       });
     }
   } catch (err) {
-    loginError.value = '登录失败，请检查用户名和密码。';
+    loginError.value =
+      '登录失败，请检查用户名和密码。请查看程序窗口输出的用户名密码，或在同目录下config.json中搜索：serverName、adminPassword 对应用户名，密码。';
     $q.notify({
       color: 'negative',
       position: 'top',

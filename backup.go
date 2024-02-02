@@ -16,13 +16,23 @@ type BackupTask struct {
 }
 
 func NewBackupTask(config config.Config) *BackupTask {
+	var ticker *time.Ticker
+	if config.BackupInterval > 0 {
+		ticker = time.NewTicker(time.Duration(config.BackupInterval) * time.Second)
+	}
+
 	return &BackupTask{
 		Config: config,
-		Ticker: time.NewTicker(time.Duration(config.BackupInterval) * time.Second),
+		Ticker: ticker,
 	}
 }
 
 func (task *BackupTask) Schedule() {
+	if task.Ticker == nil {
+		// 如果 Ticker 为 nil，不需要进行定时备份
+		return
+	}
+
 	for range task.Ticker.C {
 		task.RunBackup()
 	}
@@ -59,6 +69,41 @@ func (task *BackupTask) RunBackup() {
 		log.Printf("Failed to copy files for backup Config: %v", err)
 	} else {
 		log.Printf("Backup completed successfully: %s", destinationPath)
+	}
+
+	// 删除旧备份（如果设置了天数）
+	if task.Config.SaveDeleteDays > 0 {
+		task.deleteOldBackups()
+	}
+
+}
+
+func (task *BackupTask) deleteOldBackups() {
+	// 读取备份目录
+	files, err := os.ReadDir(task.Config.BackupPath)
+	if err != nil {
+		log.Printf("Failed to list backup directory: %v", err)
+		return
+	}
+
+	// 删除超过SaveDeleteDays天数的备份
+	for _, f := range files {
+		if f.IsDir() {
+			backupTime, err := time.Parse("2006-01-02-15-04-05", f.Name())
+			if err != nil {
+				log.Printf("Failed to parse backup directory name: %s, error: %v", f.Name(), err)
+				continue
+			}
+
+			if time.Since(backupTime).Hours() > float64(task.Config.SaveDeleteDays*24) {
+				err := os.RemoveAll(filepath.Join(task.Config.BackupPath, f.Name()))
+				if err != nil {
+					log.Printf("Failed to delete old backup: %s, error: %v", f.Name(), err)
+				} else {
+					log.Printf("Old backup deleted successfully: %s", f.Name())
+				}
+			}
+		}
 	}
 }
 
