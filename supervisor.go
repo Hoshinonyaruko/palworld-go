@@ -34,7 +34,28 @@ func (s *Supervisor) Start() {
 		} else {
 			fmt.Printf("当前正常运行中~\n")
 		}
+		if s.hasDefunct() {
+			fmt.Printf("发现僵尸进程，准备清理~\n")
+			// 此处只考虑僵尸进程是由自身内存释放导致的，如有其他原因，后续再patch
+			sys.RestartApplication()
+		}
 	}
+}
+
+func (s *Supervisor) hasDefunct() bool {
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		return false
+	} else {
+		cmd = exec.Command("ps", "-ef")
+	}
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		fmt.Printf("[ERROR] %v", err)
+	}
+	return strings.Contains(out.String(), "[PalServer.sh] <defunct>")
 }
 
 func (s *Supervisor) isServiceRunning() bool {
@@ -97,10 +118,10 @@ func (s *Supervisor) restartService() {
 		// 对于非Windows系统的处理保持不变
 		exePath = filepath.Join(s.Config.GamePath, s.Config.ProcessName+".sh")
 		args = []string{
-			"--RconEnabled=True",
-			fmt.Sprintf("--AdminPassword=%s", s.Config.WorldSettings.AdminPassword),
-			fmt.Sprintf("--port=%d", s.Config.WorldSettings.PublicPort),
-			fmt.Sprintf("--players=%d", s.Config.WorldSettings.ServerPlayerMaxNum),
+			"-RconEnabled=True",
+			fmt.Sprintf("-AdminPassword=%s", s.Config.WorldSettings.AdminPassword),
+			fmt.Sprintf("-port=%d", s.Config.WorldSettings.PublicPort),
+			fmt.Sprintf("-players=%d", s.Config.WorldSettings.ServerPlayerMaxNum),
 		}
 	}
 
