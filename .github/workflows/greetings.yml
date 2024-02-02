@@ -1,0 +1,128 @@
+name: Cross Compile Go Project
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }} for ${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            goarch: amd64
+          - os: linux
+            goarch: arm64
+          - os: darwin
+            goarch: amd64
+          - os: darwin
+            goarch: arm64
+          - os: windows
+            goarch: amd64
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: '1.21.1' # Set to specific Go version.
+
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '20.9.0' # 使用最新的 LTS 版本
+
+    - name: Cache Node modules
+      uses: actions/cache@v2
+      with:
+        path: |
+          front/palworld-front/node_modules
+          ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+
+    - name: Install Quasar CLI and dependencies
+      run: |
+        cd front/palworld-front
+        npm install -g @quasar/cli
+        npm install
+
+    - name: Build Quasar Project
+      run: |
+        cd front/palworld-front
+        quasar build
+
+    - name: Create output directory
+      run: mkdir -p output
+
+    - name: Compile Go for target
+      env:
+        GOOS: ${{ matrix.os }}
+        GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
+      run: |
+        if [ "$GOOS" = "windows" ]; then
+          go build -o output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}.exe
+        else
+          go build -o output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}
+        fi
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: palworld-go-${{ matrix.os }}-${{ matrix.goarch }}
+        path: output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}${{ endsWith(matrix.os, 'windows') && '.exe' || '' }}
+
+  prepare_release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: output
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          draft: false
+
+      - name: Upload Release Assets
+        run: |
+          for dir in output/*; do
+            if [ -d "$dir" ]; then
+              for file in "$dir"/*; do
+                if [ -f "$file" ]; then
+                  asset_name=$(basename "$file")
+                  echo "Uploading ${asset_name}"
+                  GITHUB_UPLOAD_URL=${{ steps.create_release.outputs.upload_url }}
+                  GITHUB_UPLOAD_URL="${GITHUB_UPLOAD_URL%\{*}"
+                  GITHUB_UPLOAD_URL="${GITHUB_UPLOAD_URL%\?*}"
+                  curl \
+                  -X POST \
+                  -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                  -H "Content-Type: application/octet-stream" \
+                  --data-binary @"${file}" \
+                  "${GITHUB_UPLOAD_URL}?name=${asset_name}&label=${asset_name}"
+                else
+                  echo "Expected a file in ${dir}, but found something else."
+                fi
+              done
+            else
+              echo "Expected ${dir} to be a directory."
+            fi
+          done
