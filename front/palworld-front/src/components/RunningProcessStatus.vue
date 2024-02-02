@@ -39,6 +39,7 @@
       <q-btn color="green" label="重启服务端" @click="restartServer"></q-btn>
       <q-btn color="blue" label="开启服务端" @click="startServer"></q-btn>
       <q-btn color="orange" label="关闭服务端" @click="stopServer"></q-btn>
+      <q-btn color="red" label="更新服务端" @click="updateServer"></q-btn>
     </div>
   </div>
 </template>
@@ -60,4 +61,5 @@ const sendRequest = async (url: string) => {
 const restartServer = () => sendRequest('/api/restart');
 const startServer = () => sendRequest('/api/start');
 const stopServer = () => sendRequest('/api/stop');
+const updateServer = () => sendRequest('/api/update');
 </script>

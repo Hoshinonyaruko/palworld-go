@@ -207,7 +207,7 @@ func GensokyoHandlerClosure(c *gin.Context, config config.Config) {
 func getBotHandler(msg string, message OnebotGroupMessage, config config.Config) {
 	// 检查消息是否至少以一个 "getbot" 开头
 	if !strings.HasPrefix(msg, "getbot") {
-		sendGroupMessage(message.GroupID, "错误,指令需要以getbot开头", config)
+		sendGroupMessage(message.GroupID, message.UserID, "错误,指令需要以getbot开头", config)
 		return
 	}
 
@@ -225,14 +225,14 @@ func getBotHandler(msg string, message OnebotGroupMessage, config config.Config)
 
 	// 确保在第一个非 "getbot" 部分之后还有足够的参数
 	if len(parts) < startIndex+3 {
-		sendGroupMessage(message.GroupID, "指令错误,请在palworld-go项目的机器人管理面板生成指令", config)
+		sendGroupMessage(message.GroupID, message.UserID, "指令错误,请在palworld-go项目的机器人管理面板生成指令", config)
 		return
 	}
 
 	// 解析number
 	number, err := strconv.ParseInt(parts[startIndex], 10, 64)
 	if err != nil {
-		sendGroupMessage(message.GroupID, "错误,请在palworld-go项目的机器人管理面板生成指令,number参数错误", config)
+		sendGroupMessage(message.GroupID, message.UserID, "错误,请在palworld-go项目的机器人管理面板生成指令,number参数错误", config)
 		return
 	}
 
@@ -251,10 +251,10 @@ func getBotHandler(msg string, message OnebotGroupMessage, config config.Config)
 		if err != nil {
 			fmt.Printf("储存pal-go面板端user配置出错 userid: %v 地址:%v\n", message.UserID, ipWithPort)
 		} else {
-			sendGroupMessage(message.GroupID, "绑定成功,现在你可以在帕鲁帕鲁机器人管理你的palworld-go面板", config)
+			sendGroupMessage(message.GroupID, message.UserID, "绑定成功,现在你可以在帕鲁帕鲁机器人管理你的palworld-go面板", config)
 		}
 	} else {
-		sendGroupMessage(message.GroupID, "指令无效,请重新生成,为了面板安全,palworld-go指令不可重复使用,如需多人使用,可多次生成.", config)
+		sendGroupMessage(message.GroupID, message.UserID, "指令无效,请重新生成,为了面板安全,palworld-go指令不可重复使用,如需多人使用,可多次生成.", config)
 	}
 }
 
@@ -263,7 +263,7 @@ func getplayerHandler(msg string, message OnebotGroupMessage, config config.Conf
 	userIPData, err := RetrieveIPByUserID(message.UserID)
 	if err != nil {
 		// 发送错误消息
-		sendGroupMessage(message.GroupID, "没有初始化,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给机器人", config)
+		sendGroupMessage(message.GroupID, message.UserID, "没有初始化,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给机器人", config)
 		return
 	}
 
@@ -302,7 +302,7 @@ func getplayerHandler(msg string, message OnebotGroupMessage, config config.Conf
 			return
 		}
 		defer resp.Body.Close()
-		sendGroupMessage(message.GroupID, "正在刷新玩家,可能需要3-5秒返回,请勿重复操作", config)
+		sendGroupMessage(message.GroupID, message.UserID, "正在刷新玩家,可能需要3-5秒返回,请勿重复操作", config)
 		// 读取响应
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -332,7 +332,7 @@ func getplayerHandler(msg string, message OnebotGroupMessage, config config.Conf
 			uniqueID, _ := StorePlayerInfo(player.PlayerUID, player.SteamID, player.Name)
 			responseMessage += fmt.Sprintf("[%d] %s 上次在线:%s 在线:%t\n", uniqueID, player.Name, formattedLastOnline, player.Online)
 		}
-		sendGroupMessage(message.GroupID, responseMessage, config)
+		sendGroupMessage(message.GroupID, message.UserID, responseMessage, config)
 	}
 }
 func formatTimeDifference(t time.Time) string {
@@ -352,7 +352,7 @@ func formatTimeDifference(t time.Time) string {
 	return fmt.Sprintf("%d分钟前", minutes)
 }
 
-func sendGroupMessage(groupID int64, message string, config config.Config) error {
+func sendGroupMessage(groupID int64, userID int64, message string, config config.Config) error {
 	// 获取基础URL
 	baseURL := config.Onebotv11HttpApiPath
 
@@ -363,6 +363,7 @@ func sendGroupMessage(groupID int64, message string, config config.Config) error
 	requestBody, err := json.Marshal(map[string]interface{}{
 		"group_id": groupID,
 		"message":  message,
+		"user_id":  userID,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to marshal request body: %w", err)
@@ -389,7 +390,7 @@ func kickorbanHandler(msg string, message OnebotGroupMessage, config config.Conf
 
 	// 检查是否至少有两部分（例如："踢人 123"）
 	if len(parts) < 2 {
-		sendGroupMessage(message.GroupID, "指令格式错误 应为 踢人 1 封禁 1 kick 1 ban 1", config)
+		sendGroupMessage(message.GroupID, message.UserID, "指令格式错误 应为 踢人 1 封禁 1 kick 1 ban 1", config)
 		return
 	}
 
@@ -397,27 +398,27 @@ func kickorbanHandler(msg string, message OnebotGroupMessage, config config.Conf
 	var uniqueID int64
 	_, err := fmt.Sscanf(parts[1], "%d", &uniqueID)
 	if err != nil {
-		sendGroupMessage(message.GroupID, "指令格式错误 后方应为数字 空格为分割", config)
+		sendGroupMessage(message.GroupID, message.UserID, "指令格式错误 后方应为数字 空格为分割", config)
 		return
 	}
 
 	//测试提审核代码 不要删除
 	if uniqueID == 666 {
-		sendGroupMessage(message.GroupID, operation+"测试玩家 成功", config)
+		sendGroupMessage(message.GroupID, message.UserID, operation+"测试玩家 成功", config)
 		return
 	}
 
 	// 通过uniqueID获取玩家信息
 	playerInfo, err := RetrievePlayerInfoByID(uniqueID)
 	if err != nil {
-		sendGroupMessage(message.GroupID, "获取玩家信息失败: "+err.Error(), config)
+		sendGroupMessage(message.GroupID, message.UserID, "获取玩家信息失败: "+err.Error(), config)
 		return
 	}
 
 	// 检查SteamID是否有效
 	_, err = strconv.ParseInt(playerInfo.SteamID, 10, 64)
 	if err != nil {
-		sendGroupMessage(message.GroupID, playerInfo.Name+"无效的SteamID,帕鲁服务端通病,玩家增加后再次使用 玩家列表 获取可解决", config)
+		sendGroupMessage(message.GroupID, message.UserID, playerInfo.Name+"无效的SteamID,帕鲁服务端通病,玩家增加后再次使用 玩家列表 获取可解决", config)
 		return
 	}
 
@@ -428,7 +429,7 @@ func kickorbanHandler(msg string, message OnebotGroupMessage, config config.Conf
 		Type:      operation,
 	})
 	if err != nil {
-		sendGroupMessage(message.GroupID, "构建请求失败: "+err.Error(), config)
+		sendGroupMessage(message.GroupID, message.UserID, "构建请求失败: "+err.Error(), config)
 		return
 	}
 
@@ -436,7 +437,7 @@ func kickorbanHandler(msg string, message OnebotGroupMessage, config config.Conf
 	userIPData, err := RetrieveIPByUserID(message.UserID)
 	if err != nil {
 		// 发送错误消息
-		sendGroupMessage(message.GroupID, "没有正确设置,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
+		sendGroupMessage(message.GroupID, message.UserID, "没有正确设置,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
 		return
 	}
 
@@ -453,7 +454,7 @@ func kickorbanHandler(msg string, message OnebotGroupMessage, config config.Conf
 		apiURL := baseURL + "/api/kickorban"
 		req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(reqBody))
 		if err != nil {
-			sendGroupMessage(message.GroupID, "创建请求失败: "+err.Error(), config)
+			sendGroupMessage(message.GroupID, message.UserID, "创建请求失败: "+err.Error(), config)
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
@@ -461,22 +462,22 @@ func kickorbanHandler(msg string, message OnebotGroupMessage, config config.Conf
 
 		resp, err := client.Do(req)
 		if err != nil {
-			sendGroupMessage(message.GroupID, "发送请求失败: "+err.Error(), config)
+			sendGroupMessage(message.GroupID, message.UserID, "发送请求失败: "+err.Error(), config)
 			return
 		}
 		defer resp.Body.Close()
 
 		// 检查响应状态
 		if resp.StatusCode != http.StatusOK {
-			sendGroupMessage(message.GroupID, fmt.Sprintf("%s %s 失败", operation, playerInfo.Name), config)
+			sendGroupMessage(message.GroupID, message.UserID, fmt.Sprintf("%s %s 失败", operation, playerInfo.Name), config)
 			return
 		}
 
 		// 发送成功消息
-		sendGroupMessage(message.GroupID, fmt.Sprintf("%s %s 成功", operation, playerInfo.Name), config)
+		sendGroupMessage(message.GroupID, message.UserID, fmt.Sprintf("%s %s 成功", operation, playerInfo.Name), config)
 	} else {
 		// 发送错误消息
-		sendGroupMessage(message.GroupID, "没有获取到面板信息,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
+		sendGroupMessage(message.GroupID, message.UserID, "没有获取到面板信息,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
 		return
 	}
 }
@@ -485,7 +486,7 @@ func broadcastMessageHandler(msg string, message OnebotGroupMessage, config conf
 	// 从msg中提取广播内容
 	parts := strings.SplitN(msg, " ", 2)
 	if len(parts) != 2 {
-		sendGroupMessage(message.GroupID, "广播指令格式错误", config)
+		sendGroupMessage(message.GroupID, message.UserID, "广播指令格式错误", config)
 		return
 	}
 
@@ -495,7 +496,7 @@ func broadcastMessageHandler(msg string, message OnebotGroupMessage, config conf
 	}
 	reqBody, err := json.Marshal(broadcastReq)
 	if err != nil {
-		sendGroupMessage(message.GroupID, "创建广播请求失败", config)
+		sendGroupMessage(message.GroupID, message.UserID, "创建广播请求失败", config)
 		return
 	}
 
@@ -503,7 +504,7 @@ func broadcastMessageHandler(msg string, message OnebotGroupMessage, config conf
 	userIPData, err := RetrieveIPByUserID(message.UserID)
 	if err != nil {
 		// 发送错误消息
-		sendGroupMessage(message.GroupID, "没有正确设置,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
+		sendGroupMessage(message.GroupID, message.UserID, "没有正确设置,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
 		return
 	}
 
@@ -519,7 +520,7 @@ func broadcastMessageHandler(msg string, message OnebotGroupMessage, config conf
 		apiURL := baseURL + "/api/broadcast"
 		req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(reqBody))
 		if err != nil {
-			sendGroupMessage(message.GroupID, "创建请求失败", config)
+			sendGroupMessage(message.GroupID, message.UserID, "创建请求失败", config)
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
@@ -529,21 +530,21 @@ func broadcastMessageHandler(msg string, message OnebotGroupMessage, config conf
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			sendGroupMessage(message.GroupID, "发送广播请求失败", config)
+			sendGroupMessage(message.GroupID, message.UserID, "发送广播请求失败", config)
 			return
 		}
 		defer resp.Body.Close()
 
 		// 检查响应状态
 		if resp.StatusCode != http.StatusOK {
-			sendGroupMessage(message.GroupID, fmt.Sprintf("广播失败，响应状态码: %d", resp.StatusCode), config)
+			sendGroupMessage(message.GroupID, message.UserID, fmt.Sprintf("广播失败，响应状态码: %d", resp.StatusCode), config)
 			return
 		}
 
-		sendGroupMessage(message.GroupID, "广播消息已成功发送", config)
+		sendGroupMessage(message.GroupID, message.UserID, "广播消息已成功发送", config)
 	} else {
 		// 发送错误消息
-		sendGroupMessage(message.GroupID, "没有获取到面板信息,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
+		sendGroupMessage(message.GroupID, message.UserID, "没有获取到面板信息,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
 		return
 	}
 }
@@ -553,14 +554,14 @@ func restartHandler(msg string, message OnebotGroupMessage, config config.Config
 	// 从msg中提取参数
 	parts := strings.Fields(msg)
 	if len(parts) < 3 {
-		sendGroupMessage(message.GroupID, "重启指令格式错误,应为 重启服务器 多少秒数后重启(整数) 重启公告内容", config)
+		sendGroupMessage(message.GroupID, message.UserID, "重启指令格式错误,应为 重启服务器 多少秒数后重启(整数) 重启公告内容", config)
 		return
 	}
 
 	// 检查时间参数是否为数字
 	seconds, err := strconv.Atoi(parts[1])
 	if err != nil {
-		sendGroupMessage(message.GroupID, "重启时间应为数字", config)
+		sendGroupMessage(message.GroupID, message.UserID, "重启时间应为数字", config)
 		return
 	}
 
@@ -570,7 +571,7 @@ func restartHandler(msg string, message OnebotGroupMessage, config config.Config
 	userIPData, err := RetrieveIPByUserID(message.UserID)
 	if err != nil {
 		// 发送错误消息
-		sendGroupMessage(message.GroupID, "没有正确设置,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
+		sendGroupMessage(message.GroupID, message.UserID, "没有正确设置,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
 		return
 	}
 
@@ -593,13 +594,13 @@ func restartHandler(msg string, message OnebotGroupMessage, config config.Config
 
 		reqBody, err := json.Marshal(restartReq)
 		if err != nil {
-			sendGroupMessage(message.GroupID, "创建重启请求失败", config)
+			sendGroupMessage(message.GroupID, message.UserID, "创建重启请求失败", config)
 			return
 		}
 
 		req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(reqBody))
 		if err != nil {
-			sendGroupMessage(message.GroupID, "创建请求失败", config)
+			sendGroupMessage(message.GroupID, message.UserID, "创建请求失败", config)
 			return
 		}
 
@@ -610,22 +611,22 @@ func restartHandler(msg string, message OnebotGroupMessage, config config.Config
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			sendGroupMessage(message.GroupID, "发送服务器延时重启请求失败", config)
+			sendGroupMessage(message.GroupID, message.UserID, "发送服务器延时重启请求失败", config)
 			return
 		}
 		defer resp.Body.Close()
 
 		// 检查响应状态
 		if resp.StatusCode != http.StatusOK {
-			sendGroupMessage(message.GroupID, fmt.Sprintf("服务器重启失败，响应状态码: %d", resp.StatusCode), config)
+			sendGroupMessage(message.GroupID, message.UserID, fmt.Sprintf("服务器重启失败，响应状态码: %d", resp.StatusCode), config)
 			return
 		}
 
 		// 发送成功消息
-		sendGroupMessage(message.GroupID, "服务器将在"+strconv.Itoa(seconds)+"秒后重启，维护公告: "+announcement, config)
+		sendGroupMessage(message.GroupID, message.UserID, "服务器将在"+strconv.Itoa(seconds)+"秒后重启，维护公告: "+announcement, config)
 	} else {
 		// 发送错误消息
-		sendGroupMessage(message.GroupID, "没有获取到面板信息,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
+		sendGroupMessage(message.GroupID, message.UserID, "没有获取到面板信息,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
 		return
 	}
 
@@ -653,5 +654,5 @@ func listCommandsHandler(message OnebotGroupMessage, config config.Config) {
 	commandsStr := strings.Join(commands, "\n")
 
 	// 发送指令列表
-	sendGroupMessage(message.GroupID, "可用指令列表:\n"+commandsStr, config)
+	sendGroupMessage(message.GroupID, message.UserID, "可用指令列表:\n"+commandsStr, config)
 }

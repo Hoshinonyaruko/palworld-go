@@ -3,6 +3,9 @@
     <q-btn icon="refresh" color="primary" @click="loadPlayers" class="q-mb-md"
       >刷新</q-btn
     >
+    <q-btn icon="refresh" color="primary" @click="restartSelf" class="q-mb-md"
+      >应用白名单</q-btn
+    >
     <div v-if="loading">加载中...</div>
     <div v-else>
       <q-list bordered separator>
@@ -56,6 +59,13 @@
               @click.stop="copyToClipboard(player.steamid)"
               >复制SteamID</q-btn
             >
+            <q-btn
+              flat
+              color="green"
+              icon="content_copy"
+              @click.stop="addWhite(player)"
+              >加入白名单</q-btn
+            >
           </q-item-section>
         </q-item>
       </q-list>
@@ -93,6 +103,21 @@ const loadPlayers = async () => {
   }
 };
 
+const restartSelf = async () => {
+  loading.value = true;
+  try {
+    const response = await axios.get('/api/restartself', {
+      withCredentials: true, // 确保携带 cookie
+    });
+    players.value = response.data;
+  } catch (error) {
+    console.error('API 重启请求发过去了', error);
+    $q.notify({ type: 'positive', message: '应用白名单成功' });
+  } finally {
+    loading.value = false;
+  }
+};
+
 onMounted(loadPlayers);
 
 const sortedPlayers = computed(() => {
@@ -117,6 +142,22 @@ const kickOrBan = async (player: Player, type: 'kick' | 'ban') => {
     $q.notify({
       type: 'positive',
       message: `${type === 'kick' ? '踢出' : '封禁'}成功`,
+    });
+  } catch (error) {
+    $q.notify({ type: 'negative', message: '操作失败' });
+  }
+};
+
+const addWhite = async (player: Player) => {
+  try {
+    await axios.post('/api/addwhite', {
+      playeruid: player.playeruid,
+      steamid: player.steamid,
+      name: player.name,
+    });
+    $q.notify({
+      type: 'positive',
+      message: `加白成功`,
     });
   } catch (error) {
     $q.notify({ type: 'negative', message: '操作失败' });

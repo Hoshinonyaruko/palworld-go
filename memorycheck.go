@@ -20,14 +20,24 @@ type MemoryCheckTask struct {
 }
 
 func NewMemoryCheckTask(config config.Config, BackupTask *BackupTask) *MemoryCheckTask {
+	var ticker *time.Ticker
+	if config.MemoryCheckInterval > 0 {
+		ticker = time.NewTicker(time.Duration(config.MemoryCheckInterval) * time.Second)
+	}
+
 	return &MemoryCheckTask{
 		Config:     config,
-		Ticker:     time.NewTicker(time.Duration(config.MemoryCheckInterval) * time.Second),
+		Ticker:     ticker,
 		BackupTask: BackupTask,
 	}
 }
 
 func (task *MemoryCheckTask) Schedule() {
+	if task.Ticker == nil {
+		// 如果 Ticker 为 nil，不需要进行定时检查
+		return
+	}
+
 	for range task.Ticker.C {
 		task.checkMemory()
 	}
