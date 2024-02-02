@@ -52,8 +52,10 @@ type Config struct {
 	MaintenanceWarningMessage string             `json:"maintenanceWarningMessage"` // 维护警告消息
 	WorldSettings             *GameWorldSettings `json:"worldSettings"`             // 帕鲁设定
 	Engine                    *Engine            `json:"engine"`                    // 服务端引擎设置
-	Players                   []*PlayerW         `json:"players"`                   //白名单玩家数组
-	WhiteCheckTime            int                `json:"whiteCheckTime"`            //白名单检测时间
+	Players                   []*PlayerW         `json:"players"`                   // 白名单玩家数组
+	WhiteCheckTime            int                `json:"whiteCheckTime"`            // 白名单检测时间
+	SaveDeleteDays            int                `json:"saveDeleteDays"`            // 存档删除时间
+	SteamCmdPath              string             `json:"steamCmdPath"`              // 自定义steamcmd路径
 }
 
 // 默认配置
@@ -70,6 +72,7 @@ var defaultConfig = Config{
 	UseDll:                    false,
 	Cert:                      "",
 	Key:                       "",
+	SteamCmdPath:              "C:\\Program Files\\PalServer\\steam",
 	ServerOptions:             []string{"-useperfthreads", "-NoAsyncLoadingThread", "-UseMultithreadForDS"},
 	CheckInterval:             30,      // 30 秒
 	WebuiPort:                 "52000", // Webui 端口号
@@ -81,6 +84,7 @@ var defaultConfig = Config{
 	MemoryCleanupInterval:     1800,                                                        // 内存清理时间间隔，设为半小时（1800秒）0代表不清理
 	RestartInterval:           0,                                                           // 自动重启间隔
 	WhiteCheckTime:            0,                                                           // 白名单检查周期
+	SaveDeleteDays:            0,                                                           // 存档删除时间
 	RegularMessages:           []string{"", ""},                                            // 默认的定期推送消息数组，初始可为空
 	MessageBroadcastInterval:  3600,                                                        // 默认消息广播周期，假设为1小时（3600秒）
 	MaintenanceWarningMessage: "server is going to rebot,please relogin at 1minute later.", // 默认的维护警告消息

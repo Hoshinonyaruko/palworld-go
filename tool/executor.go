@@ -3,10 +3,16 @@ package tool
 
 import (
 	"errors"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/gorcon/rcon"
+	"github.com/hoshinonyaruko/palworld-go/config"
 )
 
 var (
@@ -62,5 +68,27 @@ func (e *Executor) Close() error {
 	if e.client != nil {
 		return e.client.Close()
 	}
+	return nil
+}
+
+// UpdateServer 使用SteamCMD更新服务端
+func CreateAndRunPSScript(config config.Config) error {
+	scriptContent := fmt.Sprintf("$SteamCmdPath = \"%s\\steamcmd.exe\"\n& $SteamCmdPath +login anonymous +app_update 2394010 validate +quit", config.SteamCmdPath)
+	scriptPath := filepath.Join(os.TempDir(), "update-server.ps1")
+
+	// 创建.ps1文件
+	err := os.WriteFile(scriptPath, []byte(scriptContent), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to create PowerShell script: %w", err)
+	}
+
+	// 使用cmd /C start powershell来在新窗口中执行.ps1脚本
+	cmd := exec.Command("cmd", "/C", "start", "powershell", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
+	err = cmd.Start()
+	if err != nil {
+		return fmt.Errorf("failed to execute PowerShell script: %w", err)
+	}
+
+	log.Printf("PowerShell script started in a new window: %s", scriptPath)
 	return nil
 }
