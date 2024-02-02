@@ -767,8 +767,8 @@
           <!-- 禁用固定帧率设置 -->
           <q-toggle
             v-model="config.engine.engine.bUseFixedFrameRate"
-            label="启用动态帧率"
-            hint="动态帧率，允许游戏服务端动态调整帧率以获得最佳性能。"
+            label="固定帧率"
+            hint="固定帧率，允许游戏服务端动态固定帧率以获得最佳性能。"
             class="q-my-md"
           />
 
