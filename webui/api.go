@@ -18,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"bytes"  // 导入 bytes 包
+   	"bufio"  // 导入 bufio 包
  
 	"github.com/gin-gonic/gin"
 	"github.com/gorcon/rcon"
@@ -513,35 +515,34 @@ func HandleStop(c *gin.Context, cfg config.Config) {
 		return
 	}
 
-	// 终止进程
-	pid, err := FindPalServerPID()
-	if err != nil {
-		log.Printf("Failed to find PalServer PID: %v", err)
-		return
-	}
+	// 获取PID
+    pid, err := FindPalServerPID()
+    if err != nil {
+        log.Printf("Failed to find PalServer PID: %v", err)
+        return
+    }
 
-	if kill {
-		if err := sys.KillProcess(pid); err != nil {
-			log.Printf("Failed to kill existing process: %v", err)
-		}
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "Stop initiated"})
+    // 杀死进程
+    if err := sys.KillProcess(pid); err != nil {
+        log.Printf("Failed to kill existing process: %v", err)
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Stop initiated"})
 
 }
 
 func restartService(cfg config.Config, kill bool) {
-	//结束以前的服务端
 	pid, err := FindPalServerPID()
-	if err != nil {
-		log.Printf("Failed to find PalServer PID: %v", err)
-		return
-	}
+    if err != nil {
+        log.Printf("Failed to find PalServer PID: %v", err)
+        return
+    }
 
-	if kill {
-		if err := sys.KillProcess(pid); err != nil {
-			log.Printf("Failed to kill existing process: %v", err)
-		}
-	}
+    if kill {
+        if err := sys.KillProcess(pid); err != nil {
+            log.Printf("Failed to kill existing process: %v", err)
+        }
+    }
 
 	var exePath string
 	var args []string
