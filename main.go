@@ -23,6 +23,7 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
+	"webui"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -32,7 +33,7 @@ import (
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/sys"
 	"github.com/hoshinonyaruko/palworld-go/tool"
-	"github.com/ttyfdf/newpal/webui"
+	"github.com/hoshinonyaruko/palworld-go/webui"
 )
 
 var version string
