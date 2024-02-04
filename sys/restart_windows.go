@@ -74,20 +74,21 @@ func setConsoleTitleWindows(title string) error {
 	return nil
 }
 
-func KillProcess() error {
-	var cmd *exec.Cmd
+func KillProcess(pid int) error {
+    var cmd *exec.Cmd
 
-	if runtime.GOOS == "windows" {
-		// Windows: 直接指定要结束的进程名称
-		cmd = exec.Command("taskkill", "/IM", "PalServer-Win64-Test-Cmd.exe", "/F")
-	} else {
-		// 非Windows: 使用pkill命令和进程名称
-		cmd = exec.Command("pkill", "-f", "PalServer-Linux-Test")
-	}
+    if runtime.GOOS == "windows" {
+        // Windows: 使用 taskkill 和 PID
+        cmd = exec.Command("taskkill", "/PID", strconv.Itoa(pid), "/F")
+    } else {
+        // 非Windows: 使用 kill 命令和 PID
+        cmd = exec.Command("kill", "-9", strconv.Itoa(pid))
+    }
 
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	return cmd.Run()
+    cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+    return cmd.Run()
 }
+
 
 // RunViaBatch 函数接受配置，程序路径和参数数组
 func RunViaBatch(config config.Config, exepath string, args []string) error {
