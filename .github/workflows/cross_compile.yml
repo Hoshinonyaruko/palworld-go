@@ -14,14 +14,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: linux
-            goarch: amd64
-          - os: linux
-            goarch: arm64
-          - os: darwin
-            goarch: amd64
-          - os: darwin
-            goarch: arm64
           - os: windows
             goarch: amd64
 
