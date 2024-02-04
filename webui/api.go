@@ -195,7 +195,7 @@ func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 			}
 			// 处理 /changesave 的POST请求
 			if c.Request.URL.Path == "/api/changesave" && c.Request.Method == http.MethodPost {
-				handleChangeSave(c, config)
+				handleChangeSave(c, config,fals)
 				return
 			}
 			// 处理 /savenow 的POST请求
@@ -230,7 +230,7 @@ func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 			}
 			// 处理 /update 的POST请求 更新服务端
 			if c.Request.URL.Path == "/api/update" && c.Request.Method == http.MethodPost {
-				handleUpdate(c, config)
+				handleUpdate(c, config,fals)
 				return
 			}
 			// 处理 /addwhite 的POST请求
