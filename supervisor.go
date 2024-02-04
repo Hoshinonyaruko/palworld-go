@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hoshinonyaruko/palworld-go/config"
-	"github.com/hoshinonyaruko/palworld-go/mod"
-	"github.com/hoshinonyaruko/palworld-go/sys"
+	"github.com/ttyfdf/palworld-go/config"
+	"github.com/ttyfdf/palworld-go/mod"
+	"github.com/ttyfdf/palworld-go/sys"
 )
 
 type Supervisor struct {
