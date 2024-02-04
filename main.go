@@ -46,11 +46,6 @@ func main() {
 	// 读取或创建配置
 	jsonconfig := config.ReadConfig()
 
-
-	   
-
-    fmt.Printf("PID of PalServer.exe: %d\n", pid)
-
 	// 打印配置以确认
 	fmt.Printf("当前配置: %#v\n", jsonconfig)
 	fmt.Printf("作者 早苗狐 答疑群:587997911\n")
