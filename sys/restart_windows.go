@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/ttyfdf/palworld-go"
+	"github.com/ttyfdf/palworld-go/config"
 )
 
 // WindowsRestarter implements the Restarter interface for Windows systems.
