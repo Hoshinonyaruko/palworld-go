@@ -495,34 +495,22 @@ func HandleStop(c *gin.Context, cfg config.Config) {
 		return
 	}
 
-	// 获取PID
-    pid, err := FindPalServerPID()
-    if err != nil {
-        log.Printf("Failed to find PalServer PID: %v", err)
-        return
-    }
-
-    // 杀死进程
-    if err := sys.KillProcess(pid); err != nil {
-        log.Printf("Failed to kill existing process: %v", err)
-    }
+	// 首先，尝试终止同名进程
+	if err := main.KillServerProcess(); err != nil {
+		log.Printf("Failed to kill existing process: %v", err)
+		// 可以选择在此处返回，也可以继续尝试启动新进程
+	}
 
     c.JSON(http.StatusOK, gin.H{"message": "Stop initiated"})
 
 }
 
 func restartService(cfg config.Config, kill bool) {
-	pid, err := FindPalServerPID()
-    if err != nil {
-        log.Printf("Failed to find PalServer PID: %v", err)
-        return
-    }
-
-    if kill {
-        if err := sys.KillProcess(pid); err != nil {
-            log.Printf("Failed to kill existing process: %v", err)
-        }
-    }
+	// 首先，尝试终止同名进程
+	if err := main.KillServerProcess(); err != nil {
+		log.Printf("Failed to kill existing process: %v", err)
+		// 可以选择在此处返回，也可以继续尝试启动新进程
+	}
 
 	var exePath string
 	var args []string
@@ -1246,17 +1234,11 @@ func handleUpdate(c *gin.Context, config config.Config, kill bool) {
 		return
 	}
 
-	// 终止当前服务器进程
-	pid, err := FindPalServerPID()
-    if err != nil {
-        log.Printf("Failed to find PalServer PID: %v", err)
-        return
-    }
-
-    // 杀死进程
-    if err := sys.KillProcess(pid); err != nil {
-        log.Printf("Failed to kill existing process: %v", err)
-    }
+	// 首先，尝试终止同名进程
+	if err := main.KillServerProcess(); err != nil {
+		log.Printf("Failed to kill existing process: %v", err)
+		// 可以选择在此处返回，也可以继续尝试启动新进程
+	}
 
     c.JSON(http.StatusOK, gin.H{"message": "Stop initiated"})
 
