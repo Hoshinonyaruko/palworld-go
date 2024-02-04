@@ -23,7 +23,6 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
-	"webui"
 	"time"
 
 	"github.com/gin-gonic/gin"
