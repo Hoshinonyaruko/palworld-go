@@ -18,7 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+	"main"
+ 
 	"github.com/gin-gonic/gin"
 	"github.com/gorcon/rcon"
 	"github.com/gorilla/websocket"
@@ -97,7 +98,14 @@ func InitDB() *bbolt.DB {
 
 	return db
 }
+//获取pid
+func SomeFunctionInWebUI() {
+    // 从main包获取PID
+    pid := main.PalServerPID
 
+    // 使用PID
+    fmt.Printf("PID in webui package: %d\n", pid)
+}
 // NewCombinedMiddleware 创建并返回一个带有依赖的中间件闭包
 func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
