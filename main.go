@@ -32,13 +32,13 @@ import (
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/sys"
 	"github.com/hoshinonyaruko/palworld-go/tool"
-	"github.com/hoshinonyaruko/palworld-go/webui"
+	"github.com/ttyfdf/newpal/webui"
 )
 
 var version string
 
 var db *bbolt.DB
-
+var pid int
 //go:embed RAMMap64.exe
 var rammapFS embed.FS
 
@@ -46,6 +46,8 @@ func main() {
 	// 读取或创建配置
 	jsonconfig := config.ReadConfig()
 
+	pid := os.Getpid()
+	
 	// 打印配置以确认
 	fmt.Printf("当前配置: %#v\n", jsonconfig)
 	fmt.Printf("作者 早苗狐 答疑群:587997911\n")
@@ -301,6 +303,12 @@ func main() {
 	os.Exit(0)
 
 }
+
+func KillServerProcess() error {
+    // 调用 sys.KillProcess 来结束进程
+    return sys.KillProcess(pid)
+}
+
 
 // extractRAMMapExecutable 从嵌入的文件系统中提取RAMMap并写入临时文件
 func extractRAMMapExecutable() (string, error) {
