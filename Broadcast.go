@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hoshinonyaruko/palworld-go/config"
+	"github.com/ttyfdf/palworld-go/config"
 )
 
 type palworldBroadcast struct {
