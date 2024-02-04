@@ -29,11 +29,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.etcd.io/bbolt"
 
-	"github.com/hoshinonyaruko/palworld-go/bot"
-	"github.com/hoshinonyaruko/palworld-go/config"
-	"github.com/hoshinonyaruko/palworld-go/sys"
-	"github.com/hoshinonyaruko/palworld-go/tool"
-	"github.com/hoshinonyaruko/palworld-go/webui"
+	"github.com/ttyfdf/palworld-go/bot"
+	"github.com/ttyfdf/palworld-go/config"
+	"github.com/ttyfdf/palworld-go/sys"
+	"github.com/ttyfdf/palworld-go/tool"
+	"github.com/ttyfdf/palworld-go/webui"
 )
 
 var version string
