@@ -230,21 +230,7 @@ func main() {
 			}()
 		}
 	}
-         pid, err := findProcessPID(`\\` + cwd + `\PalServer.exe`)
-    if err != nil {
-        fmt.Println("Error:", err)
-        return
-    }
 
-    exePath := fmt.Sprintf(`\\%s\PalServer.exe`, cwd)
-
-    pid, err := findProcessPID(exePath)
-    if err != nil {
-        fmt.Println("Error:", err)
-        return
-    }
-	 // 设置全局变量
-    PalServerPID = pid
 
 	if runtime.GOOS == "windows" {
 		// 创建一个定时器，每10秒触发一次，保存游戏设置，允许玩家修改json配置并同步到ini
