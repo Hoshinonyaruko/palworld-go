@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"main"
  
 	"github.com/gin-gonic/gin"
 	"github.com/gorcon/rcon"
@@ -98,14 +97,31 @@ func InitDB() *bbolt.DB {
 
 	return db
 }
-//获取pid
-func SomeFunctionInWebUI() {
-    // 从main包获取PID
-    pid := main.PalServerPID
+//通过路径查找pid
+func FindPalServerPID() (int, error) {
+	cmd := exec.Command("tasklist", "/fo", "csv")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return 0, err
+	}
 
-    // 使用PID
-    fmt.Printf("PID in webui package: %d\n", pid)
+	scanner := bufio.NewScanner(&out)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "PalServer.exe") {
+			parts := strings.Split(line, ",")
+			if len(parts) > 1 {
+				pidStr := strings.Trim(parts[1], `"`)
+				return strconv.Atoi(pidStr)
+			}
+		}
+	}
+
+	return 0, fmt.Errorf("PalServer.exe process not found")
 }
+
 // NewCombinedMiddleware 创建并返回一个带有依赖的中间件闭包
 func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -498,9 +514,16 @@ func HandleStop(c *gin.Context, cfg config.Config) {
 	}
 
 	// 终止进程
-	if err := sys.KillProcess(); err != nil {
-		log.Printf("Failed to kill existing process: %v", err)
-		// 可以选择在此处返回，也可以继续尝试启动新进程
+	pid, err := FindPalServerPID()
+	if err != nil {
+		log.Printf("Failed to find PalServer PID: %v", err)
+		return
+	}
+
+	if kill {
+		if err := sys.KillProcess(pid); err != nil {
+			log.Printf("Failed to kill existing process: %v", err)
+		}
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Stop initiated"})
 
@@ -508,11 +531,15 @@ func HandleStop(c *gin.Context, cfg config.Config) {
 
 func restartService(cfg config.Config, kill bool) {
 	//结束以前的服务端
+	pid, err := FindPalServerPID()
+	if err != nil {
+		log.Printf("Failed to find PalServer PID: %v", err)
+		return
+	}
+
 	if kill {
-		// 首先，尝试终止同名进程
-		if err := sys.KillProcess(); err != nil {
+		if err := sys.KillProcess(pid); err != nil {
 			log.Printf("Failed to kill existing process: %v", err)
-			// 可以选择在此处返回，也可以继续尝试启动新进程
 		}
 	}
 
@@ -869,9 +896,16 @@ func handleChangeSave(c *gin.Context, config config.Config) {
 	}
 
 	// 首先，尝试终止同名进程
-	if err := sys.KillProcess(); err != nil {
-		log.Printf("Failed to kill existing process: %v", err)
-		// 可以选择在此处返回，也可以继续尝试启动新进程
+	pid, err := FindPalServerPID()
+	if err != nil {
+		log.Printf("Failed to find PalServer PID: %v", err)
+		return
+	}
+
+	if kill {
+		if err := sys.KillProcess(pid); err != nil {
+			log.Printf("Failed to kill existing process: %v", err)
+		}
 	}
 
 	// 检查源路径是否存在
@@ -1237,9 +1271,16 @@ func handleUpdate(c *gin.Context, config config.Config) {
 	}
 
 	// 终止当前服务器进程
-	if err := sys.KillProcess(); err != nil {
-		log.Printf("Failed to stop the server for update: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to stop the server for update"})
+	pid, err := FindPalServerPID()
+	if err != nil {
+		log.Printf("Failed to find PalServer PID: %v", err)
+		return
+	}
+
+	if kill {
+		if err := sys.KillProcess(pid); err != nil {
+			log.Printf("Failed to kill existing process: %v", err)
+		}
 	}
 
 	// 在PowerShell中执行更新脚本
