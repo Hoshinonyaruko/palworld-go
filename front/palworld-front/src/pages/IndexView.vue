@@ -354,13 +354,6 @@
           <!-- 数字输入框 -->
           <q-input
             filled
-            v-model.number="config.worldSettings.serverPlayerMaxNum"
-            type="number"
-            label="游戏服务器最大人数"
-            class="q-my-md"
-          />
-          <q-input
-            filled
             v-model.number="config.worldSettings.publicPort"
             type="number"
             label="公共端口"
