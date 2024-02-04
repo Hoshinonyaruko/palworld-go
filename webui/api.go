@@ -889,7 +889,7 @@ func handleGetSavelist(c *gin.Context, config config.Config) {
 }
 
 // handleChangeSave 处理 /api/changesave 请求
-func handleChangeSave(c *gin.Context, config config.Config) {
+func handleChangeSave(c *gin.Context, config config.Config, kill bool) {
 	var req ChangeSaveRequest
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
@@ -898,16 +898,17 @@ func handleChangeSave(c *gin.Context, config config.Config) {
 
 	// 首先，尝试终止同名进程
 	pid, err := FindPalServerPID()
-	if err != nil {
-		log.Printf("Failed to find PalServer PID: %v", err)
-		return
-	}
+    if err != nil {
+        log.Printf("Failed to find PalServer PID: %v", err)
+        return
+    }
 
-	if kill {
-		if err := sys.KillProcess(pid); err != nil {
-			log.Printf("Failed to kill existing process: %v", err)
-		}
-	}
+    // 杀死进程
+    if err := sys.KillProcess(pid); err != nil {
+        log.Printf("Failed to kill existing process: %v", err)
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Stop initiated"})
 
 	// 检查源路径是否存在
 	sourcePath := filepath.Join(config.BackupPath, req.Path, "SaveGames", "0")
@@ -1250,7 +1251,7 @@ func handleRestartLater(c *gin.Context, config config.Config) {
 }
 
 // handleUpdate 处理 /api/update 的POST请求
-func handleUpdate(c *gin.Context, config config.Config) {
+func handleUpdate(c *gin.Context, config config.Config, kill bool) {
 	// 首先检查是否为Windows系统
 	if runtime.GOOS != "windows" {
 		handleUpdateLinux(c, config)
@@ -1273,16 +1274,17 @@ func handleUpdate(c *gin.Context, config config.Config) {
 
 	// 终止当前服务器进程
 	pid, err := FindPalServerPID()
-	if err != nil {
-		log.Printf("Failed to find PalServer PID: %v", err)
-		return
-	}
+    if err != nil {
+        log.Printf("Failed to find PalServer PID: %v", err)
+        return
+    }
 
-	if kill {
-		if err := sys.KillProcess(pid); err != nil {
-			log.Printf("Failed to kill existing process: %v", err)
-		}
-	}
+    // 杀死进程
+    if err := sys.KillProcess(pid); err != nil {
+        log.Printf("Failed to kill existing process: %v", err)
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Stop initiated"})
 
 	// 在PowerShell中执行更新脚本
 	err = tool.CreateAndRunPSScript(config)
