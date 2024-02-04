@@ -99,30 +99,6 @@ func InitDB() *bbolt.DB {
 
 	return db
 }
-//通过路径查找pid
-func FindPalServerPID() (int, error) {
-	cmd := exec.Command("tasklist", "/fo", "csv")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		return 0, err
-	}
-
-	scanner := bufio.NewScanner(&out)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, "PalServer.exe") {
-			parts := strings.Split(line, ",")
-			if len(parts) > 1 {
-				pidStr := strings.Trim(parts[1], `"`)
-				return strconv.Atoi(pidStr)
-			}
-		}
-	}
-
-	return 0, fmt.Errorf("PalServer.exe process not found")
-}
 
 // NewCombinedMiddleware 创建并返回一个带有依赖的中间件闭包
 func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
@@ -381,6 +357,10 @@ func (c *Client) writePump() {
 			break
 		}
 	}
+}
+
+func UsePID(pid int) {
+    fmt.Printf("Using PID: %d\n", pid)
 }
 
 func WsHandlerWithDependencies(c *gin.Context, cfg config.Config) {
@@ -897,16 +877,10 @@ func handleChangeSave(c *gin.Context, config config.Config, kill bool) {
 	}
 
 	// 首先，尝试终止同名进程
-	pid, err := FindPalServerPID()
-    if err != nil {
-        log.Printf("Failed to find PalServer PID: %v", err)
-        return
-    }
-
-    // 杀死进程
-    if err := sys.KillProcess(pid); err != nil {
-        log.Printf("Failed to kill existing process: %v", err)
-    }
+	if err := main.KillServerProcess(); err != nil {
+		log.Printf("Failed to kill existing process: %v", err)
+		// 可以选择在此处返回，也可以继续尝试启动新进程
+	}
 
     c.JSON(http.StatusOK, gin.H{"message": "Stop initiated"})
 
