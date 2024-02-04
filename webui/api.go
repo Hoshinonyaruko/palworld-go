@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"myproject/main"
  
 	"github.com/gin-gonic/gin"
 	"github.com/gorcon/rcon"
@@ -28,6 +27,7 @@ import (
 	"github.com/hoshinonyaruko/palworld-go/mod"
 	"github.com/hoshinonyaruko/palworld-go/sys"
 	"github.com/hoshinonyaruko/palworld-go/tool"
+	"github.com/ttyfdf/palworld-go/main"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
