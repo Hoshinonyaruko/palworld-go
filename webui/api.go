@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"main"
+	"myproject/main"
  
 	"github.com/gin-gonic/gin"
 	"github.com/gorcon/rcon"
