@@ -195,7 +195,7 @@ func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 			}
 			// 处理 /changesave 的POST请求
 			if c.Request.URL.Path == "/api/changesave" && c.Request.Method == http.MethodPost {
-				handleChangeSave(c, config,fals)
+				handleChangeSave(c, config,false)
 				return
 			}
 			// 处理 /savenow 的POST请求
