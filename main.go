@@ -11,6 +11,10 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"strings"
+	"regexp"
+	"bufio"
+	"bytes"
 	"math/big"
 	"net"
 	"net/http"
@@ -41,6 +45,23 @@ var rammapFS embed.FS
 func main() {
 	// 读取或创建配置
 	jsonconfig := config.ReadConfig()
+
+
+	    cwd, err := os.Getwd()
+    if err != nil {
+        fmt.Println("Error getting current directory:", err)
+        return
+    }
+
+    exePath := fmt.Sprintf(`\\%s\PalServer.exe`, cwd)
+
+    pid, err := findProcessPID(exePath)
+    if err != nil {
+        fmt.Println("Error:", err)
+        return
+    }
+
+    fmt.Printf("PID of PalServer.exe: %d\n", pid)
 
 	// 打印配置以确认
 	fmt.Printf("当前配置: %#v\n", jsonconfig)
@@ -344,6 +365,30 @@ func OpenWebUI(config *config.Config) error {
 	}
 
 	return cmd.Start()
+}
+//获取pid
+func findProcessPID(processPath string) (int, error) {
+    cmd := exec.Command("tasklist", "/fo", "csv")
+    var out bytes.Buffer
+    cmd.Stdout = &out
+    err := cmd.Run()
+    if err != nil {
+        return 0, err
+    }
+
+    scanner := bufio.NewScanner(&out)
+    for scanner.Scan() {
+        line := scanner.Text()
+        if strings.Contains(line, processPath) {
+            parts := strings.Split(line, ",")
+            if len(parts) > 1 {
+                pidStr := strings.Trim(parts[1], `"`)
+                return strconv.Atoi(pidStr)
+            }
+        }
+    }
+
+    return 0, fmt.Errorf("process not found")
 }
 
 func generateRandomString(n int) string {
