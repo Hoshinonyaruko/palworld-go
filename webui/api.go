@@ -1,6 +1,7 @@
 package webui
 
 import (
+	"bufio"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -25,6 +26,7 @@ import (
 	"github.com/hoshinonyaruko/palworld-go/bot"
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/mod"
+	"github.com/hoshinonyaruko/palworld-go/status"
 	"github.com/hoshinonyaruko/palworld-go/sys"
 	"github.com/hoshinonyaruko/palworld-go/tool"
 	"github.com/shirou/gopsutil/cpu"
@@ -217,6 +219,16 @@ func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 				HandleRestartSelf(c, config)
 				return
 			}
+			// 处理 /api/getban 的Get请求
+			if c.Request.URL.Path == "/api/getban" && c.Request.Method == http.MethodGet {
+				HandleGetBan(c, config, db)
+				return
+			}
+			// 处理 /api/setunban 的Post请求
+			if c.Request.URL.Path == "/api/setunban" && c.Request.Method == http.MethodPost {
+				HandleSetUnban(c, config)
+				return
+			}
 
 		} else if strings.HasPrefix(c.Request.URL.Path, "/bot") {
 			bot.GensokyoHandlerClosure(c, config)
@@ -373,6 +385,19 @@ func WsHandlerWithDependencies(c *gin.Context, cfg config.Config) {
 
 // HandleGetJSON 返回当前的config作为JSON
 func HandleGetJSON(c *gin.Context, cfg config.Config) {
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
 	c.JSON(http.StatusOK, cfg)
 }
 
@@ -380,6 +405,19 @@ const configFile = "config.json"
 
 // HandleSaveJSON 从请求体中读取JSON并更新config
 func HandleSaveJSON(c *gin.Context, cfg config.Config) {
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
 
 	var newConfig config.Config
 	if err := c.ShouldBindJSON(&newConfig); err != nil {
@@ -390,7 +428,7 @@ func HandleSaveJSON(c *gin.Context, cfg config.Config) {
 	// 调用saveFunc来保存config
 	writeConfigToFile(newConfig)
 	// 把网页修改的配置刷新到ini
-	err := config.WriteGameWorldSettings(&newConfig, newConfig.WorldSettings)
+	err = config.WriteGameWorldSettings(&newConfig, newConfig.WorldSettings)
 	if err != nil {
 		fmt.Println("Error writing game world settings:", err)
 	} else {
@@ -467,7 +505,7 @@ func HandleStart(c *gin.Context, cfg config.Config) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
 		return
 	}
-
+	status.SetManualServerShutdown(false)
 	// Cookie验证通过后，执行重启操作
 	go restartService(cfg, false)
 	c.JSON(http.StatusOK, gin.H{"message": "start initiated"})
@@ -494,6 +532,7 @@ func HandleStop(c *gin.Context, cfg config.Config) {
 		log.Printf("Failed to kill existing process: %v", err)
 		// 可以选择在此处返回，也可以继续尝试启动新进程
 	}
+	status.SetManualServerShutdown(true)
 	c.JSON(http.StatusOK, gin.H{"message": "Stop initiated"})
 
 }
@@ -794,7 +833,20 @@ func handleKickOrBan(c *gin.Context, config config.Config, db *bbolt.DB) {
 		return
 	}
 
-	var err error
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
 	if req.Type == "kick" {
 		err = tool.KickPlayer(config, req.SteamID)
 	} else if req.Type == "ban" {
@@ -1352,4 +1404,130 @@ func IsPlayerInWhitelist(player *config.PlayerW, whitelist []*config.PlayerW) bo
 		}
 	}
 	return false
+}
+
+// HandleGetBan 处理/api/getban的GET请求
+func HandleGetBan(c *gin.Context, config config.Config, db *bbolt.DB) {
+
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	banListPath := filepath.Join(config.GameSavePath, "SaveGames", "banlist.txt")
+
+	// 打开banlist.txt文件
+	file, err := os.Open(banListPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to open ban list: %v", err)})
+		return
+	}
+	defer file.Close()
+
+	var bannedPlayers []tool.Player
+	scanner := bufio.NewScanner(file)
+
+	// 逐行读取
+	for scanner.Scan() {
+		line := scanner.Text()
+		steamID := strings.TrimPrefix(line, "steam_")
+
+		// 根据SteamID获取玩家数据
+		player, err := tool.GetPlayerDataBySteamID(db, steamID)
+		if err != nil {
+			// 如果未找到玩家信息，可能需要决定是否要忽略此错误
+			// 此处我们选择记录错误并继续处理下一个ID
+			fmt.Printf("Error getting player data for SteamID %s: %v\n", steamID, err)
+			continue
+		}
+
+		bannedPlayers = append(bannedPlayers, *player)
+	}
+
+	// 检查是否有读取文件时的错误
+	if err := scanner.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Error reading ban list: %v", err)})
+		return
+	}
+
+	// 返回JSON响应
+	c.JSON(http.StatusOK, gin.H{"bannedPlayers": bannedPlayers})
+}
+
+// HandleSetUnban 处理/api/setunban的POST请求
+func HandleSetUnban(c *gin.Context, config config.Config) {
+	var player Player
+	if err := c.BindJSON(&player); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	banListPath := filepath.Join(config.GameSavePath, "SaveGames", "banlist.txt")
+
+	// 读取并更新banlist
+	updated, err := updateBanList(banListPath, player.SteamID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update ban list: %v", err)})
+		return
+	}
+
+	if !updated {
+		fmt.Println("SteamID not found in ban list")
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Unbanned successfully"})
+}
+
+// updateBanList 从banlist.txt中删除指定的SteamID并保存更新
+func updateBanList(banListPath, steamID string) (bool, error) {
+	file, err := os.Open(banListPath)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	updated := false
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, steamID) {
+			updated = true
+			continue // 不将匹配的SteamID行添加到更新后的列表中
+		}
+		lines = append(lines, line)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return false, err
+	}
+
+	if updated {
+		// 将更新后的列表写回文件
+		return true, os.WriteFile(banListPath, []byte(strings.Join(lines, "\n")), 0644)
+	}
+
+	return updated, nil
 }

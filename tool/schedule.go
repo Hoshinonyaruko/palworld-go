@@ -128,3 +128,42 @@ func UpdateLastOnlineForPlayer(db *bbolt.DB, steamID string) error {
 		return fmt.Errorf("player with SteamID %s not found", steamID)
 	})
 }
+
+// GetPlayerDataByName 根据SteamID遍历players桶来找到玩家的数据
+func GetPlayerDataBySteamID(db *bbolt.DB, steamID string) (*Player, error) {
+	var player *Player
+
+	err := db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("players"))
+		if b == nil {
+			return fmt.Errorf("bucket not found")
+		}
+
+		// 遍历桶中的所有项
+		return b.ForEach(func(k, v []byte) error {
+			var p Player
+			if err := json.Unmarshal(v, &p); err != nil {
+				return err
+			}
+
+			// 检查SteamID是否匹配
+			if p.SteamID == steamID {
+				player = &p
+				return nil // 找到匹配项后返回nil以停止遍历
+			}
+
+			return nil // 继续遍历
+		})
+	})
+
+	if err != nil {
+		log.Printf("Error retrieving player by SteamID %s: %v", steamID, err)
+		return nil, err
+	}
+
+	if player == nil {
+		return nil, fmt.Errorf("Player with SteamID %s not found", steamID)
+	}
+
+	return player, nil
+}

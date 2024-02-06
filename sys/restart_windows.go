@@ -4,6 +4,8 @@
 package sys
 
 import (
+	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,9 +13,11 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/hoshinonyaruko/palworld-go/config"
+	"github.com/hoshinonyaruko/palworld-go/status"
 )
 
 // WindowsRestarter implements the Restarter interface for Windows systems.
@@ -75,17 +79,28 @@ func setConsoleTitleWindows(title string) error {
 }
 
 func KillProcess() error {
+	pid := status.GetGlobalPid() // 从全局变量获取PID
+	fmt.Printf("获取到当前服务端进程pid:%v", pid)
+	if pid == 0 {
+		return fmt.Errorf("invalid PID: %d", pid)
+	}
+
 	var cmd *exec.Cmd
 
 	if runtime.GOOS == "windows" {
-		// Windows: 直接指定要结束的进程名称
-		cmd = exec.Command("taskkill", "/IM", "PalServer-Win64-Test-Cmd.exe", "/F")
+		// Windows: 使用taskkill和PID结束进程
+		cmd = exec.Command("taskkill", "/PID", strconv.Itoa(pid), "/F")
 	} else {
-		// 非Windows: 使用pkill命令和进程名称
-		cmd = exec.Command("pkill", "-f", "PalServer-Linux-Test")
+		// 非Windows: 使用kill命令和PID结束进程
+		cmd = exec.Command("kill", "-9", strconv.Itoa(pid))
 	}
 
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{}
+	if runtime.GOOS == "windows" {
+		// 在Windows上隐藏命令行窗口
+		cmd.SysProcAttr.HideWindow = true
+	}
+
 	return cmd.Run()
 }
 
@@ -113,5 +128,37 @@ func RunViaBatch(config config.Config, exepath string, args []string) error {
 	// 执行批处理脚本
 	cmd := exec.Command(batchFilePath)
 	cmd.Dir = config.GamePath // 设置工作目录为游戏路径
-	return cmd.Run()
+	err = cmd.Run()
+	if err != nil {
+		log.Printf("RunViaBatch error : %v", err)
+	}
+
+	// 等待一段时间，确保C++程序有足够的时间写入PID到文件
+	time.Sleep(1 * time.Second)
+
+	// 构造pid.ini文件的路径
+	pidFilePath := filepath.Join(config.GamePath, "pid.ini")
+
+	// 读取pid.ini文件来获取PID
+	pidData, err := os.ReadFile(pidFilePath)
+	if err != nil {
+		log.Printf("failed to read pid.ini: %v", err)
+	}
+
+	pidString := strings.TrimSpace(string(pidData))
+	parts := strings.Split(pidString, "=") // 用"="分割字符串
+
+	if len(parts) != 2 {
+		log.Fatalf("Unexpected PID format: %s", pidString)
+	}
+
+	pid, err := strconv.Atoi(parts[1]) // 将分割后的第二部分转换为int
+	if err != nil {
+		log.Fatalf("Failed to convert PID string to int: %v", err)
+	}
+
+	log.Printf("Game server started successfully with PID %d", pid)
+
+	status.SetGlobalPid(pid) // 存储转换后的PID
+	return nil
 }
