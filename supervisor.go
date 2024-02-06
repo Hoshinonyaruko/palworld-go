@@ -12,6 +12,7 @@ import (
 
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/mod"
+	"github.com/hoshinonyaruko/palworld-go/status"
 	"github.com/hoshinonyaruko/palworld-go/sys"
 )
 
@@ -25,14 +26,25 @@ func NewSupervisor(config config.Config) *Supervisor {
 }
 
 func (s *Supervisor) Start() {
+	if s.Config.CheckInterval == 0 {
+		fmt.Println("CheckInterval 设置为 0，不检查进程存活")
+		return // 直接返回，不启动定时器
+	}
+
 	ticker := time.NewTicker(time.Duration(s.Config.CheckInterval) * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
+		// 在尝试重启服务之前检查是否手动关闭了服务器
+		if status.GetManualServerShutdown() {
+			fmt.Println("检测到服务器已手动关闭，不执行重启操作")
+			continue // 跳过本次循环，不执行重启操作
+		}
+
 		if !s.isServiceRunning() {
 			s.restartService()
 		} else {
-			fmt.Printf("当前正常运行中~\n")
+			fmt.Println("当前正常运行中~")
 		}
 		if s.hasDefunct() {
 			fmt.Printf("发现僵尸进程，准备清理~\n")
@@ -132,6 +144,7 @@ func (s *Supervisor) restartService() {
 	if s.Config.UseDll && runtime.GOOS == "windows" {
 		log.Printf("use bat")
 		sys.RunViaBatch(s.Config, exePath, args)
+		log.Printf("use bat success")
 	} else {
 		cmd := exec.Command(exePath, args...)
 		cmd.Dir = s.Config.GamePath // 设置工作目录为游戏路径
@@ -142,6 +155,10 @@ func (s *Supervisor) restartService() {
 		} else {
 			log.Printf("Game server restarted successfully")
 		}
+
+		// 获取并打印 PID
+		log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
+		status.SetGlobalPid(cmd.Process.Pid)
 	}
 
 }
