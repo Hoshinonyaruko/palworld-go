@@ -10,3 +10,6 @@ pal.exe
 
 # ignore dist
 webui/dist/
+
+# other
+.idea
