@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/hoshinonyaruko/palworld-go/config"
@@ -122,8 +123,10 @@ func (s *Supervisor) restartService() {
 				fmt.Sprintf("-players=%d", s.Config.WorldSettings.ServerPlayerMaxNum),
 			}
 		} else {
-			exePath = filepath.Join(s.Config.GamePath, s.Config.ProcessName+".exe")
+			exePath = filepath.Join(s.Config.GamePath, "Pal", "Binaries", "Win64", "PalServer-Win64-Test-Cmd.exe")
+			//exePath = "\"" + exePath + "\""
 			args = []string{
+				"Pal",
 				"-RconEnabled=True",
 				fmt.Sprintf("-AdminPassword=%s", s.Config.WorldSettings.AdminPassword),
 				fmt.Sprintf("-port=%d", s.Config.WorldSettings.PublicPort),
@@ -152,6 +155,12 @@ func (s *Supervisor) restartService() {
 	} else {
 		cmd := exec.Command(exePath, args...)
 		cmd.Dir = s.Config.GamePath // 设置工作目录为游戏路径
+		if runtime.GOOS == "windows" {
+			// 仅在Windows平台上设置
+			cmd.SysProcAttr = &syscall.SysProcAttr{
+				CreationFlags: 16,
+			}
+		}
 
 		// 启动进程
 		if err := cmd.Start(); err != nil {
