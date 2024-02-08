@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -71,13 +72,16 @@ func (s *Supervisor) hasDefunct() bool {
 }
 
 func (s *Supervisor) isServiceRunning() bool {
-	var cmd *exec.Cmd
+	pid := status.GetGlobalPid() // 假设这是从之前存储的地方获取PID
+	if pid == 0 {
+		return false
+	}
 
+	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("tasklist")
+		cmd = exec.Command("tasklist", "/FI", fmt.Sprintf("PID eq %d", pid))
 	} else {
-		// Unix/Linux，假设'pgrep'可用
-		cmd = exec.Command("pgrep", "-f", s.Config.ProcessName+".sh")
+		cmd = exec.Command("ps", "-p", strconv.Itoa(pid))
 	}
 
 	var out bytes.Buffer
@@ -88,12 +92,12 @@ func (s *Supervisor) isServiceRunning() bool {
 	}
 
 	if runtime.GOOS == "windows" {
-		// Windows，检查任务列表输出中是否包含进程名
-		return strings.Contains(out.String(), s.Config.ProcessName)
+		// 检查输出中是否有行包含PID，这意味着进程存在
+		return strings.Contains(out.String(), strconv.Itoa(pid))
+	} else {
+		// Unix/Linux，如果`ps`命令找到了PID，它会返回成功
+		return true
 	}
-
-	// Unix/Linux，假如'pgrep'找到了进程，它会返回成功
-	return true
 }
 
 func (s *Supervisor) restartService() {
