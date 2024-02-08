@@ -119,11 +119,3 @@ func GetGlobalSubPid() int {
 	}
 	return pid
 }
-
-func SetGlobalSubPid(pid int) {
-	globalsubpid = pid
-}
-
-func GetGlobalSubPid() int {
-	return globalsubpid
-}
