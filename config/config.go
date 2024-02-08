@@ -25,12 +25,16 @@ type PlayerW struct {
 }
 
 type Config struct {
+	Title                     string             `json:"title"`                     // 自定义标题
+	GameService               bool               `json:"gameService"`               // 游戏以服务方式启动
+	GameServiceName           string             `json:"gameServiceName"`           // 游戏服务名称
 	GamePath                  string             `json:"gamePath"`                  // 游戏可执行文件路径PalServer.exe所处的位置
 	GameSavePath              string             `json:"gameSavePath"`              // 游戏存档路径 \PalServer\Pal\Saved\文件夹的完整路径
 	BackupPath                string             `json:"backupPath"`                // 备份路径
 	SteamPath                 string             `json:"steamPath"`                 // steam路径
 	CommunityServer           bool               `json:"communityServer"`           // 社区服务器开关
 	UseDll                    bool               `json:"useDll"`                    // dll注入
+	DllPort                   string             `json:"dllPort"`                   // dll通信port
 	Cert                      string             `json:"cert"`                      // 证书
 	Key                       string             `json:"key"`                       // 密钥
 	Address                   string             `json:"address"`                   // 服务器 IP 地址
@@ -60,6 +64,7 @@ type Config struct {
 
 // 默认配置
 var defaultConfig = Config{
+	Title:                     "",
 	GamePath:                  "",
 	GameSavePath:              "",
 	BackupPath:                "",
@@ -70,6 +75,7 @@ var defaultConfig = Config{
 	ProcessName:               "PalServer",
 	Onebotv11HttpApiPath:      "",
 	UseDll:                    false,
+	DllPort:                   "53000",
 	Cert:                      "",
 	Key:                       "",
 	SteamCmdPath:              "C:\\Program Files\\PalServer\\steam",
@@ -248,6 +254,18 @@ func ReadConfig() Config {
 	if checkAndSetDefaults(&config) {
 		// 如果配置被修改，写回文件
 		writeConfigToFile(config)
+	}
+
+	// 刷新dll通信端口 构造rconsettings.ini的完整路径
+	filePath := filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "rconsettings.ini")
+
+	// 准备写入文件的内容
+	content := fmt.Sprintf("[rcon]\nport=%s\n", config.DllPort)
+
+	// 写入文件
+	err = os.WriteFile(filePath, []byte(content), 0644) // 使用0644权限创建或覆盖文件
+	if err != nil {
+		fmt.Printf("Failed to write to %s: %v", filePath, err)
 	}
 
 	return config
@@ -492,7 +510,8 @@ func ReadGameWorldSettings(config *Config) (*GameWorldSettings, error) {
 		fmt.Printf("控制台默认密码(在AdminPassword配置):useradmin\n")
 		fmt.Printf("登录cookie 24小时有效,若在控制台修改后需立即刷新,删除cookie.db并使用新的用户名密码登录\n")
 	} else {
-		settingsString = optionSettingsKey.String()
+		// 去除settingsString中的所有反引号
+		settingsString = strings.Replace(optionSettingsKey.String(), "`", "", -1)
 	}
 
 	// 解析设置字符串
@@ -597,7 +616,16 @@ func settingsToString(settings *GameWorldSettings) string {
 		var valueString string
 		switch fieldValue.Kind() {
 		case reflect.String:
-			valueString = "\"" + fieldValue.String() + "\"" // 添加双引号
+			// 特殊处理：如果字段名为"Difficulty"且值为"0"，则输出"None"；否则，不添加引号
+			if field.Name == "Difficulty" {
+				if fieldValue.String() == "0" {
+					valueString = "None" // 特殊值处理
+				} else {
+					valueString = fieldValue.String() // 不添加双引号
+				}
+			} else {
+				valueString = "\"" + fieldValue.String() + "\"" // 为其他字符串值添加双引号
+			}
 		case reflect.Float64:
 			valueString = strconv.FormatFloat(fieldValue.Float(), 'f', 6, 64) // 格式化浮点数，保留6位小数
 		case reflect.Int:
@@ -643,6 +671,8 @@ func WriteGameWorldSettings(config *Config, settings *GameWorldSettings) error {
 
 	// 使用settingsToString函数生成OptionSettings值
 	optionSettingsValue := settingsToString(settings)
+	// 去除optionSettingsValue中的所有反引号
+	optionSettingsValue = strings.Replace(optionSettingsValue, "`", "", -1)
 
 	// 获取或创建OptionSettings项，并设置其值
 	optionSettingsKey, err := section.GetKey("OptionSettings")

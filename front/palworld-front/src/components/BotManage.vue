@@ -24,12 +24,9 @@ const getBot = async () => {
   apiResponse.value = await response.text();
 };
 
-const getBotLink = async () => {
-  const response = await fetch('/api/getbotlink', {
-    method: 'POST',
-    credentials: 'include',
-  });
-  apiResponse.value = await response.text();
+const getBotLink = () => {
+  window.location.href =
+    'https://qm.qq.com/cgi-bin/qm/qr?k=7aDJFyxLC6a450LMZfzG9Q1lwWy2veQj&jump_from=webapi&authKey=Im38dkervx6ISKg78NudQZgZnZv/O4bmb8f8CFrgMmJKY+MH5LsVNJ+KdJB5byY1';
 };
 
 const copyResponse = () => {

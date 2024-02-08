@@ -11,6 +11,7 @@
         <q-tab name="command" label="服务器指令" />
         <q-tab name="player-manage" label="玩家管理" />
         <q-tab name="player-white" label="玩家白名单" />
+        <q-tab name="ban-manage" label="封禁玩家管理" />
         <q-tab name="advanced" label="SAV修改" @click="redirectToSav" />
         <q-tab name="server-check" label="主机管理" />
         <q-tab name="save-manage" label="存档管理" />
@@ -24,8 +25,27 @@
         <!-- 守护配置修改页面内容 -->
         <div class="q-gutter-xs q-mt-md">
           <div class="text-subtitle2">守护配置修改</div>
-
+          <!-- 保存按钮 -->
+          <q-btn
+            color="primary"
+            label="保存"
+            @click="saveConfig"
+            class="q-mt-md"
+          />
+          <!-- 重启服务端按钮 -->
+          <q-btn
+            color="secondary"
+            label="重启服务端"
+            @click="restartServer"
+            class="q-mt-md"
+          />
           <!-- 文本输入框 -->
+          <q-input
+            filled
+            v-model="config.title"
+            label="自定义程序标题"
+            class="q-my-md"
+          />
           <q-input
             filled
             v-model="config.processName"
@@ -52,10 +72,33 @@
             label="自动注入UE4SS和可输入命令控制台DLL"
             class="q-my-md"
           />
+          <q-toggle
+            v-model="config.gameService"
+            label="是否采用systemctl方式管理游戏服务"
+            class="q-my-md"
+          />
           <q-input
             filled
             v-model="config.maintenanceWarningMessage"
-            label="维护公告消息(英文)"
+            label="维护公告消息"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.gameServiceName"
+            label="游戏进程服务名称"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.webuiPort"
+            label="webui端口(多服务端请自行错开)"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.dllPort"
+            label="dll通信端口(多服务端请自行错开)"
             class="q-my-md"
           />
           <q-input
@@ -254,6 +297,20 @@
         </div>
       </q-page>
       <q-page padding v-if="tab === 'server'">
+         <!-- 保存按钮 -->
+         <q-btn
+         color="primary"
+         label="保存"
+         @click="saveConfig"
+         class="q-mt-md"
+       />
+       <!-- 重启服务端按钮 -->
+       <q-btn
+         color="secondary"
+         label="重启服务端"
+         @click="restartServer"
+         class="q-mt-md"
+       />
         <!-- 服务端配置修改页面内容 -->
         <div class="q-gutter-xs q-mt-md">
           <div class="text-subtitle2">服务端配置修改</div>
@@ -275,11 +332,11 @@
           <!-- 难度和死亡掉落 -->
           <!-- 难度选择框 -->
           <div class="q-my-md">
-            <q-select
+            <q-input
               filled
               v-model="config.worldSettings.difficulty"
-              :options="difficultyOptions"
-              label="难度"
+              label="难度 0默认 1简单 2中等 3复杂"
+              class="q-my-md"
             />
             <q-btn
               icon="help"
@@ -289,7 +346,7 @@
               @click="toggleTooltip2('difficulty')"
             />
             <q-tooltip v-if="showDifficultyTooltip">
-              难度说明：简单（Eazy），困难（Difficult）
+              难度说明：数字越大,越难
             </q-tooltip>
           </div>
 
@@ -412,7 +469,7 @@
             filled
             v-model.number="config.worldSettings.palDamageRateDefense"
             type="number"
-            label="Pal 防御伤害率"
+            label="Pal 承受伤害倍率"
             class="q-my-md"
           />
           <q-input
@@ -426,7 +483,7 @@
             filled
             v-model.number="config.worldSettings.playerDamageRateDefense"
             type="number"
-            label="玩家防御伤害率"
+            label="玩家承受伤害倍率"
             class="q-my-md"
           />
           <q-input
@@ -954,6 +1011,10 @@
           </div>
         </div>
       </q-page>
+      <!-- 封禁玩家管理组件 -->
+      <q-page padding v-if="tab === 'ban-manage'">
+        <ban-manage />
+      </q-page>
       <q-page padding v-if="tab === 'server-check'">
         <div class="text-h6">服务器检测页面</div>
         <running-process-status
@@ -977,10 +1038,12 @@
 import { ref, onMounted, onUnmounted, onBeforeUnmount, watch } from 'vue';
 import axios from 'axios';
 import { QPage, QCard, QCardSection } from 'quasar';
+import { useQuasar } from 'quasar';
 import RunningProcessStatus from 'components/RunningProcessStatus.vue';
 import PlayerManage from 'components/PlayerManage.vue';
 import SaveManage from 'components/SaveManage.vue';
 import BotManage from 'components/BotManage.vue';
+import BanManage from 'components/BanManage.vue';
 
 //给components传递数据
 const props = defineProps({
@@ -992,8 +1055,7 @@ const players = ref([]);
 const status = ref(null); // 假设 ProcessInfo 是一个对象，这里使用 null 作为初始值
 
 const tab = ref('guard'); // 默认选中守护配置修改
-// 难度选项
-const difficultyOptions = ['Eazy', 'None', 'Difficult'];
+
 // 死亡掉落选项
 const deathPenaltyOptions = ['None', 'Item', 'ItemAndEquipment', 'All'];
 
@@ -1058,20 +1120,41 @@ function removePlayer(index) {
 }
 
 onMounted(async () => {
+  const $q = useQuasar();
   try {
-    const response = await axios.get('/api/getjson');
+    const response = await axios.get('/api/getjson', {
+      withCredentials: true, // 确保携带 cookie
+    });
     config.value = response.data;
+    $q.notify({
+      type: 'positive',
+      message: '配置加载成功',
+    });
   } catch (error) {
     console.error('Error fetching configuration:', error);
+    $q.notify({
+      type: 'negative',
+      message: '获取配置失败',
+    });
   }
 });
 
 const saveConfig = async () => {
+  const $q = useQuasar();
   try {
-    await axios.post('/api/savejson', config.value);
-    alert('配置已保存！');
+    await axios.post('/api/savejson', config.value, {
+      withCredentials: true, // 确保携带 cookie
+    });
+    $q.notify({
+      type: 'positive',
+      message: '配置已保存！',
+    });
   } catch (error) {
     console.error('Error saving configuration:', error);
+    $q.notify({
+      type: 'negative',
+      message: '保存配置失败',
+    });
   }
 };
 
