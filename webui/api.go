@@ -603,6 +603,10 @@ func restartService(cfg config.Config, kill bool) {
 		} else {
 			log.Printf("Game server restarted successfully")
 		}
+
+		// 获取并打印 PID
+		log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
+		status.SetGlobalPid(cmd.Process.Pid)
 	}
 }
 

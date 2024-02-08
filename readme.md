@@ -32,6 +32,12 @@ https://github.com/N00byKing/PalWorld-ServerInjector
 
 本项目简化并自动了上方项目的dll注入，并内置了其注入器的可执行文件。
 
+感谢腾讯云提供的折扣服务器
+
+https://curl.qcloud.com/8K1KhiJd
+
+【腾讯云】热卖套餐配置低至26元/月起，助您一键开服，即刻畅玩，立享优惠！
+
 ## 机器人
 初步实现了Onebotv11标准的palworld机器人
 
