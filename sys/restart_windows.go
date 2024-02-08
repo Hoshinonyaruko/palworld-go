@@ -18,6 +18,7 @@ import (
 
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/status"
+	"gopkg.in/ini.v1"
 )
 
 // WindowsRestarter implements the Restarter interface for Windows systems.
@@ -79,12 +80,33 @@ func setConsoleTitleWindows(title string) error {
 }
 
 func KillProcess() error {
-	pid := status.GetGlobalPid() // 从全局变量获取PID
-	fmt.Printf("获取到当前服务端进程pid:%v", pid)
+	pid := status.GetGlobalPid()
+	subPid := status.GetGlobalSubPid()
+
+	fmt.Printf("获取到当前服务端进程pid:%v\n", pid)
 	if pid == 0 {
 		return fmt.Errorf("invalid PID: %d", pid)
 	}
 
+	// 结束主进程
+	err := killByPid(pid)
+	if err != nil {
+		return err
+	}
+
+	// 如果存在SUBPID，则结束SUBPID
+	if subPid != 0 {
+		fmt.Printf("获取到子进程pid:%v\n", subPid)
+		err := killByPid(subPid)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func killByPid(pid int) error {
 	var cmd *exec.Cmd
 
 	if runtime.GOOS == "windows" {
@@ -101,7 +123,13 @@ func KillProcess() error {
 		cmd.SysProcAttr.HideWindow = true
 	}
 
-	return cmd.Run()
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("failed to kill process with PID %d: %v", pid, err)
+	}
+
+	fmt.Printf("成功结束进程 PID %d\n", pid)
+	return nil
 }
 
 // RunViaBatch 函数接受配置，程序路径和参数数组
@@ -136,29 +164,39 @@ func RunViaBatch(config config.Config, exepath string, args []string) error {
 	// 等待一段时间，确保C++程序有足够的时间写入PID到文件
 	time.Sleep(1 * time.Second)
 
-	// 构造pid.ini文件的路径
+	err = parsePidFile(config)
+	if err != nil {
+		log.Fatalf("Error parsing pid.ini: %v", err)
+	}
+	return nil
+}
+
+func parsePidFile(config config.Config) error {
 	pidFilePath := filepath.Join(config.GamePath, "pid.ini")
 
-	// 读取pid.ini文件来获取PID
-	pidData, err := os.ReadFile(pidFilePath)
+	// 使用ini库加载和解析文件
+	cfg, err := ini.Load(pidFilePath)
 	if err != nil {
-		log.Printf("failed to read pid.ini: %v", err)
+		return fmt.Errorf("failed to read pid.ini: %v", err)
 	}
 
-	pidString := strings.TrimSpace(string(pidData))
-	parts := strings.Split(pidString, "=") // 用"="分割字符串
-
-	if len(parts) != 2 {
-		log.Fatalf("Unexpected PID format: %s", pidString)
-	}
-
-	pid, err := strconv.Atoi(parts[1]) // 将分割后的第二部分转换为int
+	// 读取PID
+	pidString := cfg.Section("").Key("PID").String()
+	pid, err := strconv.Atoi(pidString)
 	if err != nil {
-		log.Fatalf("Failed to convert PID string to int: %v", err)
+		return fmt.Errorf("failed to convert PID string to int: %v", err)
 	}
-
 	log.Printf("Game server started successfully with PID %d", pid)
-
 	status.SetGlobalPid(pid) // 存储转换后的PID
+
+	// 读取SUBPID
+	subPidString := cfg.Section("").Key("SUBPID").String()
+	subPid, err := strconv.Atoi(subPidString)
+	if err != nil {
+		return fmt.Errorf("failed to convert SUBPID string to int: %v", err)
+	}
+	log.Printf("Subprocess started successfully with SUBPID %d", subPid)
+	status.SetGlobalSubPid(subPid) // 存储转换后的SUBPID
+
 	return nil
 }

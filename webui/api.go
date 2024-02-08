@@ -594,8 +594,9 @@ func restartService(cfg config.Config, kill bool) {
 		log.Printf("use bat")
 		sys.RunViaBatch(cfg, exePath, args)
 	} else {
+		var cmd *exec.Cmd
 		if cfg.GameService && cfg.GameServiceName != "" {
-			cmd := exec.Command("sudo", "systemctl", "restart", cfg.GameServiceName)
+			cmd = exec.Command("sudo", "systemctl", "restart", cfg.GameServiceName)
 			// 启动进程
 			if err := cmd.Start(); err != nil {
 				log.Printf("Failed to restart game server: %v", err)
@@ -603,7 +604,7 @@ func restartService(cfg config.Config, kill bool) {
 				log.Printf("Game server restarted successfully")
 			}
 		} else {
-			cmd := exec.Command(exePath, args...)
+			cmd = exec.Command(exePath, args...)
 			cmd.Dir = cfg.GamePath // 设置工作目录为游戏路径
 
 			// 启动进程
@@ -613,6 +614,10 @@ func restartService(cfg config.Config, kill bool) {
 				log.Printf("Game server restarted successfully")
 			}
 		}
+
+		// 获取并打印 PID
+		log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
+		status.SetGlobalPid(cmd.Process.Pid)
 	}
 }
 

@@ -25,7 +25,20 @@
         <!-- 守护配置修改页面内容 -->
         <div class="q-gutter-xs q-mt-md">
           <div class="text-subtitle2">守护配置修改</div>
-
+          <!-- 保存按钮 -->
+          <q-btn
+            color="primary"
+            label="保存"
+            @click="saveConfig"
+            class="q-mt-md"
+          />
+          <!-- 重启服务端按钮 -->
+          <q-btn
+            color="secondary"
+            label="重启服务端"
+            @click="restartServer"
+            class="q-mt-md"
+          />
           <!-- 文本输入框 -->
           <q-input
             filled
@@ -1043,6 +1056,19 @@ const redirectToSav = () => {
   window.location.href = '/sav/index.html'; // 重定向到 /sav 路径
 };
 
+// // 难度选项
+// const difficultyOptions = [
+//   { label: '简单', value: 'Eazy' },
+//   { label: '困难', value: 'Difficult' },
+// ];
+
+// // 死亡掉落选项
+// const deathPenaltyOptions = [
+//   { label: '不掉落', value: 'None' },
+//   { label: '只掉落物品', value: 'Item' },
+//   { label: '掉落物品和装备', value: 'ItemAndEquipment' },
+//   { label: '掉落物品、装备和帕鲁', value: 'All' },
+// ];
 const config = ref({});
 
 // 增加一个消息到数组
