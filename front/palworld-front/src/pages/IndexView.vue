@@ -53,10 +53,21 @@
             label="自动注入UE4SS和可输入命令控制台DLL"
             class="q-my-md"
           />
+          <q-toggle
+            v-model="config.gameService"
+            label="是否采用systemctl方式管理游戏服务"
+            class="q-my-md"
+          />
           <q-input
             filled
             v-model="config.maintenanceWarningMessage"
             label="维护公告消息"
+            class="q-my-md"
+          />
+          <q-input
+            filled
+            v-model="config.gameServiceName"
+            label="游戏进程服务名称"
             class="q-my-md"
           />
           <q-input
