@@ -46,7 +46,7 @@ func main() {
 	fmt.Printf("当前配置: %#v\n", jsonconfig)
 	fmt.Printf("作者 早苗狐 答疑群:587997911\n")
 	//给程序整个标题
-	sys.SetTitle("作者 早苗狐 答疑群:587997911")
+	sys.SetTitle(jsonconfig.Title + " 作者 早苗狐 答疑群:587997911")
 
 	// 设置监控和自动重启
 	supervisor := NewSupervisor(jsonconfig)

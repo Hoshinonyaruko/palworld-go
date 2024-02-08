@@ -42,6 +42,12 @@
           <!-- 文本输入框 -->
           <q-input
             filled
+            v-model="config.title"
+            label="自定义程序标题"
+            class="q-my-md"
+          />
+          <q-input
+            filled
             v-model="config.processName"
             label="进程名称"
             class="q-my-md"
@@ -291,6 +297,20 @@
         </div>
       </q-page>
       <q-page padding v-if="tab === 'server'">
+         <!-- 保存按钮 -->
+         <q-btn
+         color="primary"
+         label="保存"
+         @click="saveConfig"
+         class="q-mt-md"
+       />
+       <!-- 重启服务端按钮 -->
+       <q-btn
+         color="secondary"
+         label="重启服务端"
+         @click="restartServer"
+         class="q-mt-md"
+       />
         <!-- 服务端配置修改页面内容 -->
         <div class="q-gutter-xs q-mt-md">
           <div class="text-subtitle2">服务端配置修改</div>

@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -568,8 +569,10 @@ func restartService(cfg config.Config, kill bool) {
 				fmt.Sprintf("-players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
 			}
 		} else {
-			exePath = filepath.Join(cfg.GamePath, cfg.ProcessName+".exe")
+			exePath = filepath.Join(cfg.GamePath, "Pal", "Binaries", "Win64", "PalServer-Win64-Test-Cmd.exe")
+			//exePath = "\"" + exePath + "\""
 			args = []string{
+				"Pal",
 				"-RconEnabled=True",
 				fmt.Sprintf("-AdminPassword=%s", cfg.WorldSettings.AdminPassword),
 				fmt.Sprintf("-port=%d", cfg.WorldSettings.PublicPort),
@@ -607,6 +610,12 @@ func restartService(cfg config.Config, kill bool) {
 			cmd = exec.Command(exePath, args...)
 			cmd.Dir = cfg.GamePath // 设置工作目录为游戏路径
 
+			if runtime.GOOS == "windows" {
+				// 仅在Windows平台上设置
+				cmd.SysProcAttr = &syscall.SysProcAttr{
+					CreationFlags: 16,
+				}
+			}
 			// 启动进程
 			if err := cmd.Start(); err != nil {
 				log.Printf("Failed to restart game server: %v", err)
