@@ -18,7 +18,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -26,7 +25,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/hoshinonyaruko/palworld-go/bot"
 	"github.com/hoshinonyaruko/palworld-go/config"
-	"github.com/hoshinonyaruko/palworld-go/mod"
 	"github.com/hoshinonyaruko/palworld-go/status"
 	"github.com/hoshinonyaruko/palworld-go/sys"
 	"github.com/hoshinonyaruko/palworld-go/tool"
@@ -487,7 +485,8 @@ func HandleRestart(c *gin.Context, cfg config.Config) {
 	}
 
 	// Cookie验证通过后，执行重启操作
-	go restartService(cfg, true)
+	sys.KillProcess()
+	sys.RestartService(cfg)
 	c.JSON(http.StatusOK, gin.H{"message": "Restart initiated"})
 
 }
@@ -508,7 +507,7 @@ func HandleStart(c *gin.Context, cfg config.Config) {
 	}
 	status.SetManualServerShutdown(false)
 	// Cookie验证通过后，执行重启操作
-	go restartService(cfg, false)
+	sys.RestartService(cfg)
 	c.JSON(http.StatusOK, gin.H{"message": "start initiated"})
 
 }
@@ -536,98 +535,6 @@ func HandleStop(c *gin.Context, cfg config.Config) {
 	status.SetManualServerShutdown(true)
 	c.JSON(http.StatusOK, gin.H{"message": "Stop initiated"})
 
-}
-
-func restartService(cfg config.Config, kill bool) {
-	//结束以前的服务端
-	if kill {
-		// 首先，尝试终止同名进程
-		if err := sys.KillProcess(); err != nil {
-			log.Printf("Failed to kill existing process: %v", err)
-			// 可以选择在此处返回，也可以继续尝试启动新进程
-		}
-	}
-
-	var exePath string
-	var args []string
-
-	if runtime.GOOS == "windows" {
-		if cfg.CommunityServer {
-			exePath = filepath.Join(cfg.SteamPath, "Steam.exe")
-			args = []string{"-applaunch", "2394010"}
-		} else if cfg.UseDll {
-			err := mod.CheckAndWriteFiles(filepath.Join(cfg.GamePath, "Pal", "Binaries", "Win64"))
-			if err != nil {
-				log.Printf("Failed to write files: %v", err)
-				return
-			}
-			exePath = filepath.Join(cfg.GamePath, "Pal", "Binaries", "Win64", "PalServerInject.exe")
-			args = []string{
-				"-RconEnabled=True",
-				fmt.Sprintf("-AdminPassword=%s", cfg.WorldSettings.AdminPassword),
-				fmt.Sprintf("-port=%d", cfg.WorldSettings.PublicPort),
-				fmt.Sprintf("-players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
-			}
-		} else {
-			exePath = filepath.Join(cfg.GamePath, "Pal", "Binaries", "Win64", "PalServer-Win64-Test-Cmd.exe")
-			//exePath = "\"" + exePath + "\""
-			args = []string{
-				"Pal",
-				"-RconEnabled=True",
-				fmt.Sprintf("-AdminPassword=%s", cfg.WorldSettings.AdminPassword),
-				fmt.Sprintf("-port=%d", cfg.WorldSettings.PublicPort),
-				fmt.Sprintf("-players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
-			}
-		}
-	} else {
-		exePath = filepath.Join(cfg.GamePath, cfg.ProcessName+".sh")
-		args = []string{
-			"-RconEnabled=True",
-			fmt.Sprintf("-AdminPassword=%s", cfg.WorldSettings.AdminPassword),
-			fmt.Sprintf("-port=%d", cfg.WorldSettings.PublicPort),
-			fmt.Sprintf("-players=%d", cfg.WorldSettings.ServerPlayerMaxNum),
-		}
-	}
-
-	args = append(args, cfg.ServerOptions...) // 添加GameWorldSettings参数
-
-	// 执行启动命令
-	log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))
-	if cfg.UseDll && runtime.GOOS == "windows" {
-		log.Printf("use bat")
-		sys.RunViaBatch(cfg, exePath, args)
-	} else {
-		var cmd *exec.Cmd
-		if cfg.GameService && cfg.GameServiceName != "" {
-			cmd = exec.Command("sudo", "systemctl", "restart", cfg.GameServiceName)
-			// 启动进程
-			if err := cmd.Start(); err != nil {
-				log.Printf("Failed to restart game server: %v", err)
-			} else {
-				log.Printf("Game server restarted successfully")
-			}
-		} else {
-			cmd = exec.Command(exePath, args...)
-			cmd.Dir = cfg.GamePath // 设置工作目录为游戏路径
-
-			if runtime.GOOS == "windows" {
-				// 仅在Windows平台上设置
-				cmd.SysProcAttr = &syscall.SysProcAttr{
-					CreationFlags: 16,
-				}
-			}
-			// 启动进程
-			if err := cmd.Start(); err != nil {
-				log.Printf("Failed to restart game server: %v", err)
-			} else {
-				log.Printf("Game server restarted successfully")
-			}
-		}
-
-		// 获取并打印 PID
-		log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
-		status.SetGlobalPid(cmd.Process.Pid)
-	}
 }
 
 // writeConfigToFile 将配置写回文件
@@ -972,7 +879,8 @@ func handleChangeSave(c *gin.Context, config config.Config) {
 	}
 
 	// 存档更换成功后
-	go restartService(config, true)
+	sys.KillProcess()
+	sys.RestartService(config)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Save changed successfully"})
 }

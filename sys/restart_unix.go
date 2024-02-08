@@ -5,12 +5,16 @@ package sys
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 
 	"github.com/hoshinonyaruko/palworld-go/config"
+	"github.com/hoshinonyaruko/palworld-go/status"
 )
 
 // UnixRestarter implements the Restarter interface for Unix-like systems.
@@ -70,4 +74,39 @@ func KillProcess() error {
 // RunViaBatch 函数接受配置，程序路径和参数数组
 func RunViaBatch(config config.Config, exepath string, args []string) error {
 	return nil
+}
+
+// linux
+func RestartService(config config.Config) {
+	var exePath string
+	var args []string
+
+	// 对于非Windows系统的处理保持不变
+	exePath = filepath.Join(config.GamePath, config.ProcessName+".sh")
+	args = []string{
+		"-RconEnabled=True",
+		fmt.Sprintf("-AdminPassword=%s", config.WorldSettings.AdminPassword),
+		fmt.Sprintf("-port=%d", config.WorldSettings.PublicPort),
+		fmt.Sprintf("-players=%d", config.WorldSettings.ServerPlayerMaxNum),
+	}
+
+	args = append(args, config.ServerOptions...) // 添加GameWorldSettings参数
+
+	// 执行启动命令
+	log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))
+
+	cmd := exec.Command(exePath, args...)
+	cmd.Dir = config.GamePath // 设置工作目录为游戏路径
+
+	// 启动进程
+	if err := cmd.Start(); err != nil {
+		log.Printf("Failed to restart game server: %v", err)
+	} else {
+		log.Printf("Game server restarted successfully")
+	}
+
+	// 获取并打印 PID
+	log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
+	status.SetGlobalPid(cmd.Process.Pid)
+
 }
