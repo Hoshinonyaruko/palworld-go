@@ -25,6 +25,8 @@ type PlayerW struct {
 }
 
 type Config struct {
+	GameService               bool               `json:"gameService"`               // 游戏以服务方式启动
+	GameServiceName           string             `json:"gameServiceName"`           // 游戏服务名称
 	GamePath                  string             `json:"gamePath"`                  // 游戏可执行文件路径PalServer.exe所处的位置
 	GameSavePath              string             `json:"gameSavePath"`              // 游戏存档路径 \PalServer\Pal\Saved\文件夹的完整路径
 	BackupPath                string             `json:"backupPath"`                // 备份路径

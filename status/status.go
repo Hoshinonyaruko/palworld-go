@@ -5,6 +5,7 @@ var memoryIssueDetected bool = false
 var successReadGameWorldSettings bool = false
 var manualServerShutdown bool = false // 存储是否手动关闭服务器的状态
 var globalpid int = 0
+var globalsubpid int = 0
 
 // SetMemoryIssueDetected 设置内存问题检测标志
 func SetMemoryIssueDetected(flag bool) {
@@ -42,4 +43,12 @@ func SetGlobalPid(pid int) {
 
 func GetGlobalPid() int {
 	return globalpid
+}
+
+func SetGlobalSubPid(pid int) {
+	globalsubpid = pid
+}
+
+func GetGlobalSubPid() int {
+	return globalsubpid
 }
