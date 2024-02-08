@@ -57,7 +57,7 @@ func main() {
 	go backupTask.Schedule()
 
 	if !supervisor.isServiceRunning() {
-		supervisor.restartService()
+		sys.RestartService(jsonconfig)
 	} else {
 		fmt.Printf("当前服务端正常运行中,守护和内存助手已启动\n")
 	}

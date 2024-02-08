@@ -17,6 +17,7 @@ import (
 	"unsafe"
 
 	"github.com/hoshinonyaruko/palworld-go/config"
+	"github.com/hoshinonyaruko/palworld-go/mod"
 	"github.com/hoshinonyaruko/palworld-go/status"
 	"gopkg.in/ini.v1"
 )
@@ -199,4 +200,68 @@ func parsePidFile(config config.Config) error {
 	status.SetGlobalSubPid(subPid) // 存储转换后的SUBPID
 
 	return nil
+}
+
+func RestartService(config config.Config) {
+	var exePath string
+	var args []string
+
+	if config.CommunityServer {
+		exePath = filepath.Join(config.SteamPath, "Steam.exe")
+		args = []string{"-applaunch", "2394010"}
+	} else if config.UseDll {
+		err := mod.CheckAndWriteFiles(filepath.Join(config.GamePath, "Pal", "Binaries", "Win64"))
+		if err != nil {
+			log.Printf("Failed to write files: %v", err)
+			return
+		}
+		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServerInject.exe")
+		args = []string{
+			"-RconEnabled=True",
+			fmt.Sprintf("-AdminPassword=%s", config.WorldSettings.AdminPassword),
+			fmt.Sprintf("-port=%d", config.WorldSettings.PublicPort),
+			fmt.Sprintf("-players=%d", config.WorldSettings.ServerPlayerMaxNum),
+		}
+	} else {
+		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServer-Win64-Test-Cmd.exe")
+		//exePath = "\"" + exePath + "\""
+		args = []string{
+			"Pal",
+			"-RconEnabled=True",
+			fmt.Sprintf("-AdminPassword=%s", config.WorldSettings.AdminPassword),
+			fmt.Sprintf("-port=%d", config.WorldSettings.PublicPort),
+			fmt.Sprintf("-players=%d", config.WorldSettings.ServerPlayerMaxNum),
+		}
+	}
+
+	args = append(args, config.ServerOptions...) // 添加GameWorldSettings参数
+
+	// 执行启动命令
+	log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))
+	if config.UseDll && runtime.GOOS == "windows" {
+		log.Printf("use bat")
+		RunViaBatch(config, exePath, args)
+		log.Printf("use bat success")
+	} else {
+		cmd := exec.Command(exePath, args...)
+		cmd.Dir = config.GamePath // 设置工作目录为游戏路径
+		if runtime.GOOS == "windows" {
+			// 仅在Windows平台上设置
+			cmd.SysProcAttr = &syscall.SysProcAttr{
+				CreationFlags: 16,
+			}
+		}
+
+		// 启动进程
+		if err := cmd.Start(); err != nil {
+			log.Printf("Failed to restart game server: %v", err)
+		} else {
+			log.Printf("Game server restarted successfully")
+		}
+
+		// 获取并打印 PID
+		log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
+		status.SetGlobalPid(cmd.Process.Pid)
+	}
+
 }
