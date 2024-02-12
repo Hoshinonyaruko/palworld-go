@@ -50,7 +50,14 @@ func (task *palworldBroadcast) RunpalworldBroadcast() {
 		// 根据task.Config.UseDLL来决定发送方式
 		if task.Config.UseDll {
 			// 使用HTTP请求发送消息
-			base := "http://127.0.0.1:53000/rcon?text="
+			dllPort, err := strconv.Atoi(task.Config.DllPort)
+			if err != nil {
+				log.Printf("Error converting DllPort from string to int: %v", err)
+				// 處理錯誤，例如返回或設置一個默認值
+				return
+			}
+			base := "http://127.0.0.1:" + strconv.Itoa(dllPort) + "/rcon?text="
+
 			messageText := url.QueryEscape("broadcast " + randomMessage)
 			fullURL := base + messageText
 
