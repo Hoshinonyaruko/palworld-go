@@ -322,7 +322,7 @@ func (c *Client) readPump(config config.Config) {
 		// 检查消息是否以"Broadcast"开头 且注入了DLL 可以使用第三方rcon
 		if strings.HasPrefix(string(message), "broadcast") && config.UseDll {
 			// 使用本地方式发送
-			base := "http://127.0.0.1:" + strconv.Itoa(config.DllPort) + "/rcon?text="
+			base := "http://127.0.0.1:" + strconv.Itoa(int(config.DllPort)) + "/rcon?text="
 			messageText := url.QueryEscape(string(message))
 			fullURL := base + messageText
 
