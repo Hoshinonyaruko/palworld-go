@@ -39,6 +39,13 @@
             @click="restartServer"
             class="q-mt-md"
           />
+           <!-- 答疑按钮 -->
+           <q-btn
+           color="secondary"
+           label="遇到问题,答疑按钮"
+           @click="getGroupLink"
+           class="q-mt-md"
+         />
           <!-- 文本输入框 -->
           <q-input
             filled
@@ -69,12 +76,22 @@
           />
           <q-toggle
             v-model="config.useDll"
-            label="自动注入UE4SS和可输入命令控制台DLL"
+            label="自动注入UE4SS和可输入命令控制台DLL(发中文rcon)"
             class="q-my-md"
           />
           <q-toggle
             v-model="config.gameService"
             label="是否采用systemctl方式管理游戏服务"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.enableUe4Debug"
+            label="是否开启UE4窗口(关闭可以解决闪退,内存占用问题)"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.enableEngineSetting"
+            label="是否启用引擎配置,部分电脑修改引擎配置会卡顿,可关闭"
             class="q-my-md"
           />
           <q-input
@@ -1265,6 +1282,11 @@ const fillCommand = (cmd) => {
 };
 
 //服务器检测
+
+const getGroupLink = () => {
+  window.location.href =
+    'https://qm.qq.com/cgi-bin/qm/qr?k=7aDJFyxLC6a450LMZfzG9Q1lwWy2veQj&jump_from=webapi&authKey=Im38dkervx6ISKg78NudQZgZnZv/O4bmb8f8CFrgMmJKY+MH5LsVNJ+KdJB5byY1';
+};
 
 async function updateStatus() {
   try {

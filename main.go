@@ -237,12 +237,14 @@ func main() {
 				} else {
 					fmt.Println("Game world settings saved successfully.")
 				}
-				//保存引擎配置
-				err = config.WriteEngineSettings(&jsonconfig, jsonconfig.Engine)
-				if err != nil {
-					fmt.Println("Error writing Engine settings:", err)
-				} else {
-					fmt.Println("Engine settings saved successfully.")
+				if jsonconfig.EnableEngineSetting {
+					//保存引擎配置
+					err = config.WriteEngineSettings(&jsonconfig, jsonconfig.Engine)
+					if err != nil {
+						fmt.Println("Error writing Engine settings:", err)
+					} else {
+						fmt.Println("Engine settings saved successfully.")
+					}
 				}
 			}
 		}()
