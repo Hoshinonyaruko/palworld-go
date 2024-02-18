@@ -9,6 +9,7 @@ import (
 	"embed"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"math/big"
@@ -17,7 +18,9 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -47,6 +50,71 @@ func main() {
 	fmt.Printf("作者 早苗狐 答疑群:587997911\n")
 	//给程序整个标题
 	sys.SetTitle(jsonconfig.Title + " 作者 早苗狐 答疑群:587997911")
+
+	//为小白和萌新贴心打造的引导启动流程，解决小白不会寻找路径，不会复制文件的问题。点击即用，友好方便。
+	if runtime.GOOS == "windows" {
+		//检查程序是否运行在合适目录
+		if _, err := os.Stat("PalServer.exe"); os.IsNotExist(err) {
+			// PalServer.exe不存在，查找PalServer-Win64-Test-Cmd.exe的路径
+			cmd := exec.Command("cmd", "/C", "wmic process where name='PalServer-Win64-Test-Cmd.exe' get ExecutablePath")
+			output, err := cmd.Output()
+			if err != nil {
+				fmt.Println("Failed to execute command:", err)
+				return
+			}
+
+			outputStr := string(output)
+			if !strings.Contains(outputStr, "ExecutablePath") {
+				fmt.Println("PalServer-Win64-Test-Cmd.exe not found")
+				fmt.Println("Notice:Please restart this program after launching the game server, and the installation will be completed automatically, releasing a launch icon to the desktop.")
+				fmt.Println("请打开游戏服务端后再次运行本程序，将会自动完成安装，释放启动图标到桌面。")
+				showMessage("提示", "请打开游戏服务端保持运行后的同时运行本程序,\n将会自动寻找游戏路径,\n自动完成安装,并释放启动图标到桌面。\n请到桌面使用StartPalWorld.bat启动我。\nNotice:Please restart this program after launching the game server, and the installation will be completed automatically, releasing a launch icon to the desktop.")
+				return
+			}
+
+			lines := strings.Split(outputStr, "\n")
+			for _, line := range lines {
+				if strings.TrimSpace(line) != "" && !strings.Contains(line, "ExecutablePath") {
+					exePath := strings.TrimSpace(line)
+					// 获取到的exe路径向上移动到PalServer这个级别
+					targetDir := filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(exePath)))) // 假设路径格式没有变化
+					targetExePath := filepath.Join(targetDir, "palworld-go.exe")
+
+					// 复制自身到目标目录
+					self, _ := os.Executable()
+					target, err := os.Create(targetExePath)
+					if err != nil {
+						fmt.Println("Failed to create target file:", err)
+						return
+					}
+					defer target.Close()
+
+					source, err := os.Open(self)
+					if err != nil {
+						fmt.Println("Failed to open source file:", err)
+						return
+					}
+					defer source.Close()
+
+					_, err = io.Copy(target, source)
+					if err != nil {
+						fmt.Println("Failed to copy file:", err)
+						return
+					}
+
+					//创建启动脚本
+					createBATScript(targetDir, "palworld-go.exe")
+
+					fmt.Println("PalWorld-Go setup completed successfully.")
+					showMessage("提示", "现在请关闭服务端窗口！,并在桌面找到脚本启动palworld-go(会自动打开服务端).\n安装成功,请从桌面名为 StartPalWorld.bat 的脚本图标启动pal-go面板。\n请在5秒内点击确认按钮~确保文件能够释放成功~\nPalWorld-Go setup completed successfully. please launch palworld-go form the desktop.")
+					deleteSelfAndConfigs()
+					return
+				}
+			}
+		} else {
+			fmt.Println("PalServer.exe exists in the current directory.")
+		}
+	}
 
 	// 设置监控和自动重启
 	supervisor := NewSupervisor(jsonconfig)
@@ -356,4 +424,70 @@ func generateRandomString(n int) string {
 		b[i] = letters[randInt.Int64()]
 	}
 	return string(b)
+}
+
+func showMessage(title, text string) error {
+	// PowerShell脚本来显示消息框
+	psScript := `
+Add-Type -AssemblyName PresentationFramework
+[System.Windows.MessageBox]::Show('` + text + `', '` + title + `')
+`
+	cmd := exec.Command("powershell", "-Command", psScript)
+	err := cmd.Start() // 使用Start而不是Run，以非阻塞方式执行
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func createBATScript(targetDir, targetExeName string) error {
+	desktopPathCmd := exec.Command("powershell", "-Command", "[System.Environment]::GetFolderPath('Desktop')")
+	desktopPathBytes, err := desktopPathCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to get desktop path: %v", err)
+	}
+	desktopPath := string(desktopPathBytes)
+	desktopPath = desktopPath[:len(desktopPath)-2] // 移除末尾的\r\n
+
+	batContent := fmt.Sprintf(`
+@echo off
+cd /d "%s"
+start "" "%s"
+`, targetDir, filepath.Join(targetDir, targetExeName))
+
+	batFilePath := filepath.Join(desktopPath, "StartPalWorld.bat")
+	err = os.WriteFile(batFilePath, []byte(batContent), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to create BAT file: %v", err)
+	}
+
+	return nil
+}
+
+func deleteSelfAndConfigs() error {
+	exePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %v", err)
+	}
+	dir := filepath.Dir(exePath)
+
+	// 构造PowerShell脚本命令
+	psScript := fmt.Sprintf(`
+Start-Sleep -Seconds 5
+Remove-Item '%s' -Force
+Remove-Item '%s\\config.json' -Force
+Remove-Item '%s\\config.ini' -Force
+`, exePath, dir, dir)
+
+	cmd := exec.Command("powershell", "-Command", psScript)
+
+	// 开始执行PowerShell命令，不等待其完成
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start PowerShell script: %v", err)
+	}
+
+	// 退出当前程序，让PowerShell脚本有机会删除文件
+	os.Exit(0)
+
+	return nil
 }
