@@ -322,7 +322,13 @@ func (c *Client) readPump(config config.Config) {
 		// 检查消息是否以"Broadcast"开头 且注入了DLL 可以使用第三方rcon
 		if strings.HasPrefix(string(message), "broadcast") && config.UseDll {
 			// 使用本地方式发送
-			base := "http://127.0.0.1:53000/rcon?text="
+			dllPort, err := strconv.Atoi(config.DllPort)
+			if err != nil {
+				log.Printf("Error converting DllPort from string to int: %v", err)
+				// 處理錯誤，例如返回或設置一個默認值
+				return
+			}
+			base := "http://127.0.0.1:" + strconv.Itoa(dllPort) + "/rcon?text="
 			messageText := url.QueryEscape(string(message))
 			fullURL := base + messageText
 
