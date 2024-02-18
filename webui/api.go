@@ -439,12 +439,14 @@ func HandleSaveJSON(c *gin.Context, cfg config.Config) {
 	} else {
 		fmt.Println("Game world settings saved successfully.")
 	}
-
-	err = config.WriteEngineSettings(&newConfig, newConfig.Engine)
-	if err != nil {
-		fmt.Println("Error writing Engine settings:", err)
-	} else {
-		fmt.Println("Engine settings saved successfully.")
+	// 写引擎配置
+	if newConfig.EnableEngineSetting {
+		err = config.WriteEngineSettings(&newConfig, newConfig.Engine)
+		if err != nil {
+			fmt.Println("Error writing Engine settings:", err)
+		} else {
+			fmt.Println("Engine settings saved successfully.")
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Config updated successfully"})
