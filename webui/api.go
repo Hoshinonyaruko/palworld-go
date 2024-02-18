@@ -594,8 +594,11 @@ func HandleLoginRequest(c *gin.Context, config config.Config) {
 func checkCredentials(username, password string, jsonconfig config.Config) bool {
 	serverUsername := jsonconfig.WorldSettings.ServerName
 	serverPassword := jsonconfig.WorldSettings.AdminPassword
-	fmt.Printf("有用户使用serverUsername:%v serverPassword:%v 进行登入\n", username, password)
-	fmt.Printf("登入密码serverUsername:%v serverPassword:%v 进行登入\n", serverUsername, serverPassword)
+	fmt.Printf("有用户正尝试使用 用户名:%v 密码:%v 进行登入\n", username, password)
+	fmt.Printf("A user is attempting to log in with Username: %v Password: %v\n", username, password)
+
+	fmt.Printf("请使用默认登入密码[%v] 默认密码[%v] 进行登入,不包含[],遇到问题可到QQ群:587997911 请教\n", serverUsername, serverPassword)
+	fmt.Printf("please use default account[%v] default password[%v] to login, not include []\n", serverUsername, serverPassword)
 	return username == serverUsername && password == serverPassword
 }
 
