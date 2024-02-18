@@ -84,7 +84,7 @@ async function login() {
       void $router.push('/index');
     } else {
       loginError.value =
-        '登录失败，请检查用户名和密码。请查看程序窗口输出的用户名密码，或在同目录下config.json中搜索：serverName、adminPassword 对应用户名，密码。';
+      'Login failed, please check the username and password. Please refer to the program\'s command line window for the default username and password.\n登录失败，请检查用户名和密码。请查看程序命令行窗口输出的默认用户名密码。';
       // 显示通知
       $q.notify({
         color: 'negative',
@@ -95,7 +95,7 @@ async function login() {
     }
   } catch (err) {
     loginError.value =
-      '登录失败，请检查用户名和密码。请查看程序窗口输出的用户名密码，或在同目录下config.json中搜索：serverName、adminPassword 对应用户名，密码。';
+    'Login failed, please check the username and password. Please refer to the program\'s command line window for the default username and password.\n登录失败，请检查用户名和密码。请查看程序命令行窗口输出的默认用户名密码。';
     $q.notify({
       color: 'negative',
       position: 'top',
