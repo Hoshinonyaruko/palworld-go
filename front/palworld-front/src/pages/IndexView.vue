@@ -94,6 +94,16 @@
             label="是否启用引擎配置,部分电脑修改引擎配置会卡顿,可关闭"
             class="q-my-md"
           />
+          <q-toggle
+            v-model="config.enableBotNotification"
+            label="是否启用机器人服务器情况播报"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.enableRebootLater"
+            label="主机管理页面点关闭按钮前是否广播通知玩家(延迟60s关闭)"
+            class="q-my-md"
+          />
           <q-input
             filled
             v-model="config.maintenanceWarningMessage"

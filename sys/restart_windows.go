@@ -16,6 +16,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/hoshinonyaruko/palworld-go/bot"
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/mod"
 	"github.com/hoshinonyaruko/palworld-go/status"
@@ -80,10 +81,11 @@ func setConsoleTitleWindows(title string) error {
 	return nil
 }
 
-func KillProcess() error {
+func KillProcess(config config.Config) error {
 	pid := status.GetGlobalPid()
 	subPid := status.GetGlobalSubPid()
-
+	//发送机器人推送
+	bot.SendCommandMessages("stop", config)
 	fmt.Printf("获取到当前服务端进程pid:%v\n", pid)
 	if pid == 0 {
 		return fmt.Errorf("invalid PID: %d", pid)
@@ -206,6 +208,8 @@ func RestartService(config config.Config) {
 	var exePath string
 	var args []string
 
+	//发送机器人推送
+	bot.SendCommandMessages("run", config)
 	if config.CommunityServer {
 		exePath = filepath.Join(config.SteamPath, "Steam.exe")
 		args = []string{"-applaunch", "2394010"}

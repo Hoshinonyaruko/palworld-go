@@ -167,3 +167,32 @@ func GetPlayerDataBySteamID(db *bbolt.DB, steamID string) (*Player, error) {
 
 	return player, nil
 }
+
+// GetCurrentOnlinePlayers 返回当前在线玩家的列表
+func GetCurrentOnlinePlayers(db *bbolt.DB) ([]string, error) {
+	var onlinePlayers []string
+	err := db.View(func(tx *bbolt.Tx) error {
+		b := tx.Bucket([]byte("players"))
+		if b == nil {
+			return fmt.Errorf("players bucket not found")
+		}
+
+		// 遍历所有玩家
+		return b.ForEach(func(k, v []byte) error {
+			var player Player
+			if err := json.Unmarshal(v, &player); err != nil {
+				log.Printf("Error unmarshalling player data: %v", err)
+				return nil // 继续处理下一个玩家
+			}
+
+			// 检查玩家是否在线（最后在线时间在10分钟以内）
+			if time.Since(player.LastOnline) <= 10*time.Minute {
+				onlinePlayers = append(onlinePlayers, player.Name)
+			}
+
+			return nil
+		})
+	})
+
+	return onlinePlayers, err
+}
