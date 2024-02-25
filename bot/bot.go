@@ -1,11 +1,13 @@
 package bot
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -102,6 +104,8 @@ func GensokyoHandlerClosure(c *gin.Context, config config.Config) {
 		// 去除字符串前后的空格
 		msg = strings.TrimSpace(msg)
 
+		//英文
+
 		// 处理以 "getbot" 开头的消息
 		if strings.HasPrefix(msg, "getbot") {
 			getBotHandler(msg, message, config)
@@ -120,6 +124,44 @@ func GensokyoHandlerClosure(c *gin.Context, config config.Config) {
 			return
 		}
 
+		// 处理以 "kick" 开头的消息
+		if strings.HasPrefix(msg, "kick") {
+			kickorbanHandler(msg, message, config, "kick")
+			return
+		}
+
+		// 处理以 "ban" 开头的消息
+		if strings.HasPrefix(msg, "ban") {
+			kickorbanHandler(msg, message, config, "ban")
+			return
+		}
+
+		// 处理以 "Broadcast" 开头的消息
+		if strings.HasPrefix(msg, "Broadcast") {
+			broadcastMessageHandler(msg, message, config)
+			return
+		}
+
+		// 处理以 "restart" 开头的消息
+		if strings.HasPrefix(msg, "restart") {
+			restartHandler(msg, message, config)
+			return
+		}
+
+		// 处理以 "commonlist" 开头的消息
+		if strings.HasPrefix(msg, "commonlist") {
+			listCommandsHandler(message, config)
+			return
+		}
+
+		// 处理以 "playernum" 开头的消息
+		if strings.HasPrefix(msg, "playernum") {
+			getplayernumHandler(message, config)
+			return
+		}
+
+		//简体中文
+
 		// 处理以 "玩家列表" 开头的消息
 		if strings.HasPrefix(msg, "玩家列表") {
 			getplayerHandler(msg, message, config, false)
@@ -132,33 +174,15 @@ func GensokyoHandlerClosure(c *gin.Context, config config.Config) {
 			return
 		}
 
-		// 处理以 "kick" 开头的消息
-		if strings.HasPrefix(msg, "kick") {
-			kickorbanHandler(msg, message, config, "kick")
-			return
-		}
-
 		// 处理以 "踢人" 开头的消息
 		if strings.HasPrefix(msg, "踢人") {
 			kickorbanHandler(msg, message, config, "kick")
 			return
 		}
 
-		// 处理以 "ban" 开头的消息
-		if strings.HasPrefix(msg, "ban") {
-			kickorbanHandler(msg, message, config, "ban")
-			return
-		}
-
 		// 处理以 "封禁" 开头的消息
 		if strings.HasPrefix(msg, "封禁") {
 			kickorbanHandler(msg, message, config, "ban")
-			return
-		}
-
-		// 处理以 "Broadcast" 开头的消息
-		if strings.HasPrefix(msg, "Broadcast") {
-			broadcastMessageHandler(msg, message, config)
 			return
 		}
 
@@ -174,21 +198,41 @@ func GensokyoHandlerClosure(c *gin.Context, config config.Config) {
 			return
 		}
 
-		// 处理以 "restart" 开头的消息
-		if strings.HasPrefix(msg, "restart") {
-			restartHandler(msg, message, config)
-			return
-		}
-
 		// 处理以 "指令列表" 开头的消息
 		if strings.HasPrefix(msg, "指令列表") {
 			listCommandsHandler(message, config)
 			return
 		}
 
-		// 处理以 "commonlist" 开头的消息
-		if strings.HasPrefix(msg, "commonlist") {
-			listCommandsHandler(message, config)
+		// 处理以 "玩家数量" 开头的消息
+		if strings.HasPrefix(msg, "玩家数量") {
+			getplayernumHandler(message, config)
+			return
+		}
+
+		//繁体中文
+
+		// 處理以 "廣播" 開頭的消息
+		if strings.HasPrefix(msg, "廣播") {
+			broadcastMessageHandler(msg, message, config)
+			return
+		}
+
+		// 處理以 "重啟伺服器" 開頭的消息
+		if strings.HasPrefix(msg, "重啟伺服器") {
+			restartHandler(msg, message, config)
+			return
+		}
+
+		// 处理以 "命令列表" 开头的消息
+		if strings.HasPrefix(msg, "命令列表") {
+			listCommandsHandlertc(message, config)
+			return
+		}
+
+		// 处理以 "玩家數量" 开头的消息
+		if strings.HasPrefix(msg, "玩家數量") {
+			getplayernumHandler(message, config)
 			return
 		}
 
@@ -636,18 +680,20 @@ func listCommandsHandler(message OnebotGroupMessage, config config.Config) {
 	// 构建指令列表
 	commands := []string{
 		"getbot - 获取机器人信息",
-		"player - 获取玩家信息",
-		"update player - 更新玩家信息",
 		"玩家列表 - 显示玩家列表",
 		"刷新玩家列表 - 刷新并显示玩家列表",
-		"kick - 踢出玩家",
 		"踢人 - 踢出玩家",
-		"ban - 封禁玩家",
 		"封禁 - 封禁玩家",
-		"Broadcast - 发送广播消息",
 		"广播 - 发送广播消息",
 		"重启服务器 - 重启游戏服务器",
-		"restart - 重启游戏服务器",
+		"玩家数量- 查询玩家数量",
+		"player - Retrieve player information",
+		"update player - Update player information",
+		"kick - Kick a player out",
+		"ban - Ban a player",
+		"Broadcast - Send a broadcast message",
+		"restart - Restart the game server",
+		"playernum - Query the number of players",
 	}
 
 	// 将指令列表转换为字符串，每个指令后换行
@@ -655,4 +701,159 @@ func listCommandsHandler(message OnebotGroupMessage, config config.Config) {
 
 	// 发送指令列表
 	sendGroupMessage(message.GroupID, message.UserID, "可用指令列表:\n"+commandsStr, config)
+}
+
+func listCommandsHandlertc(message OnebotGroupMessage, config config.Config) {
+	// 构建指令列表
+	commands := []string{
+		"getbot - 獲取機器人資訊",
+		"玩家列表 - 顯示玩家列表",
+		"刷新玩家列表 - 刷新並顯示玩家列表",
+		"踢人 - 踢出玩家",
+		"封禁 - 封禁玩家",
+		"廣播 - 發送廣播消息",
+		"重啟伺服器 - 重啟遊戲伺服器",
+		"玩家數量- 查询玩家數量",
+		"player - Retrieve player information",
+		"update player - Update player information",
+		"kick - Kick a player out",
+		"ban - Ban a player",
+		"Broadcast - Send a broadcast message",
+		"restart - Restart the game server",
+		"playernum - Query the number of players",
+	}
+
+	// 將指令列表轉換為字符串，每個指令後換行
+	commandsStr := strings.Join(commands, "\n")
+
+	// 發送指令列表
+	sendGroupMessage(message.GroupID, message.UserID, "可用指令列表:\n"+commandsStr, config)
+}
+
+// 发送基于命令的消息
+func SendCommandMessages(command string, config config.Config) error {
+	// 尝试打开guilds.txt文件
+	file, err := os.Open("guilds.txt")
+	if err != nil {
+		if os.IsNotExist(err) {
+			// 如果文件不存在，则创建文件
+			file, err = os.Create("guilds.txt")
+			if err != nil {
+				return fmt.Errorf("failed to create guilds.txt: %w", err)
+			}
+			// 文件已创建但为空，直接返回
+			file.Close()
+			return nil
+		} else {
+			// 其他错误，返回错误信息
+			return fmt.Errorf("failed to open guilds.txt: %w", err)
+		}
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		groupID := scanner.Text()
+		// 转换groupID为int64
+		var gID int64
+		_, err := fmt.Sscanf(groupID, "%d", &gID)
+		if err != nil {
+			return fmt.Errorf("failed to parse groupID: %w", err)
+		}
+
+		// 根据命令读取相应的文件
+		fileName := command + ".txt"
+		message, err := os.ReadFile(fileName)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// 文件不存在，创建文件
+				file, err := os.Create(fileName)
+				if err != nil {
+					return fmt.Errorf("failed to create %s: %w", fileName, err)
+				}
+				file.Close() // 关闭新创建的文件
+				continue     // 文件已创建但为空，继续下一个groupID
+			} else {
+				return fmt.Errorf("failed to read %s: %w", fileName, err)
+			}
+		}
+		if len(message) == 0 {
+			// 文件为空，继续下一个groupID
+			continue
+		}
+
+		// 发送消息
+		err = sendGroupMessage(gID, 0, string(message), config)
+		if err != nil {
+			return fmt.Errorf("failed to send group message: %w", err)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading guilds.txt: %w", err)
+	}
+
+	return nil
+}
+
+func getplayernumHandler(message OnebotGroupMessage, config config.Config) {
+
+	// 尝试获取用户的IP和UUID
+	userIPData, err := RetrieveIPByUserID(message.UserID)
+	if err != nil {
+		// 发送错误消息
+		sendGroupMessage(message.GroupID, message.UserID, "没有正确设置,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
+		return
+	}
+
+	// 检查IP是否为空
+	if userIPData.IP != "" {
+		// 根据https值确定使用HTTP还是HTTPS
+		baseURL := "http://" + userIPData.IP
+		if userIPData.Https {
+			baseURL = "https://" + userIPData.IP
+		}
+
+		// 创建HTTP客户端
+		client := &http.Client{}
+		apiURL := baseURL + "/api/getplayernum"
+		req, err := http.NewRequest("GET", apiURL, nil) // GET请求不需要请求体
+		if err != nil {
+			sendGroupMessage(message.GroupID, message.UserID, "创建请求失败: "+err.Error(), config)
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{Name: "login_cookie", Value: userIPData.UUID})
+
+		resp, err := client.Do(req)
+		if err != nil {
+			sendGroupMessage(message.GroupID, message.UserID, "发送请求失败: "+err.Error(), config)
+			return
+		}
+		defer resp.Body.Close()
+
+		// 检查响应状态
+		if resp.StatusCode != http.StatusOK {
+			sendGroupMessage(message.GroupID, message.UserID, "获取玩家数量失败", config)
+			return
+		}
+
+		// 解析响应体中的JSON数据
+		var result struct {
+			TotalPlayers  int `json:"total_players"`
+			OnlinePlayers int `json:"online_players"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			sendGroupMessage(message.GroupID, message.UserID, "解析响应失败: "+err.Error(), config)
+			return
+		}
+
+		// 发送成功消息，包括总玩家数量和在线玩家数量
+		successMessage := fmt.Sprintf("总玩家数量: %d, 在线玩家数量: %d", result.TotalPlayers, result.OnlinePlayers)
+		sendGroupMessage(message.GroupID, message.UserID, successMessage, config)
+	} else {
+		// 发送错误消息
+		sendGroupMessage(message.GroupID, message.UserID, "没有获取到面板信息,请使用palworld-go面板,在机器人管理或服务器主人处获取指令,然后发给我", config)
+		return
+	}
 }

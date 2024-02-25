@@ -62,6 +62,8 @@ type Config struct {
 	SteamCmdPath              string             `json:"steamCmdPath"`              // 自定义steamcmd路径
 	EnableUe4Debug            bool               `json:"enableUe4Debug"`            // 是否开启UE4 Debug窗口
 	EnableEngineSetting       bool               `json:"enableEngineSetting"`       // 是否开启引擎设置
+	EnableBotNotification     bool               `json:"enableBotNotification"`     // 是否开启机器人广播
+	EnableRebootLater         bool               `json:"enableRebootLater"`         // 是否开启延时关闭&重启
 }
 
 // 默认配置

@@ -57,7 +57,7 @@ func setConsoleTitleWindows(title string) error {
 	return nil
 }
 
-func KillProcess() error {
+func KillProcess(config config.Config) error {
 	var cmd *exec.Cmd
 
 	if runtime.GOOS == "windows" {
