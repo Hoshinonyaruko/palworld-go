@@ -61,7 +61,7 @@ func HandleMemoryUsage(threshold float64, RconClient *RconClient, config config.
 	// 判断是否使用新的DLL方式发送广播
 	if config.UseDll {
 		// 构建请求的URL
-		base := "http://127.0.0.1:" + fmt.Sprintf("%d", config.DllPort) + "/rcon?text="
+		base := "http://127.0.0.1:" + config.DllPort + "/rcon?text="
 		message := url.QueryEscape("broadcast " + config.MaintenanceWarningMessage)
 		fullURL := base + message
 
