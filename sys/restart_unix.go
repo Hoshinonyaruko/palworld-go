@@ -84,12 +84,17 @@ func RestartService(config config.Config) {
 	// 对于非Windows系统的处理保持不变
 	exePath = filepath.Join(config.GamePath, config.ProcessName+".sh")
 	args = []string{
-		"-RconEnabled=True",
 		fmt.Sprintf("-AdminPassword=%s", config.WorldSettings.AdminPassword),
 		fmt.Sprintf("-port=%d", config.WorldSettings.PublicPort),
 		fmt.Sprintf("-players=%d", config.WorldSettings.ServerPlayerMaxNum),
 	}
-
+	if config.CommunityServer {
+		append(args, "-publiclobby")
+	}
+	// 如果RCON启用，则添加RCON参数
+	if config.worldSettings.RCONEnabled {
+		args = append(args, fmt.Sprintf("-rconport=%s", config.worldSettings.RconPort))
+	}
 	args = append(args, config.ServerOptions...) // 添加GameWorldSettings参数
 
 	// 执行启动命令

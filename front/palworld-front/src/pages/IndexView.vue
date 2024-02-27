@@ -148,12 +148,6 @@
           />
           <q-input
             filled
-            v-model="config.steamPath"
-            label="Steam安装路径(启动社区服务器用)"
-            class="q-my-md"
-          />
-          <q-input
-            filled
             v-model="config.steamCmdPath"
             label="SteamCmd路径(一键更新需要)"
             class="q-my-md"

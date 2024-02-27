@@ -31,7 +31,6 @@ type Config struct {
 	GamePath                  string             `json:"gamePath"`                  // 游戏可执行文件路径PalServer.exe所处的位置
 	GameSavePath              string             `json:"gameSavePath"`              // 游戏存档路径 \PalServer\Pal\Saved\文件夹的完整路径
 	BackupPath                string             `json:"backupPath"`                // 备份路径
-	SteamPath                 string             `json:"steamPath"`                 // steam路径
 	CommunityServer           bool               `json:"communityServer"`           // 社区服务器开关
 	UseDll                    bool               `json:"useDll"`                    // dll注入
 	DllPort                   string             `json:"dllPort"`                   // dll通信port
@@ -72,7 +71,6 @@ var defaultConfig = Config{
 	GamePath:                  "",
 	GameSavePath:              "",
 	BackupPath:                "",
-	SteamPath:                 "",
 	CommunityServer:           false,
 	Address:                   "127.0.0.1",
 	UseHttps:                  false,
