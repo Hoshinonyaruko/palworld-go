@@ -60,6 +60,10 @@ type Config struct {
 	WhiteCheckTime            int                `json:"whiteCheckTime"`            // 白名单检测时间
 	SaveDeleteDays            int                `json:"saveDeleteDays"`            // 存档删除时间
 	SteamCmdPath              string             `json:"steamCmdPath"`              // 自定义steamcmd路径
+	EnableUe4Debug            bool               `json:"enableUe4Debug"`            // 是否开启UE4 Debug窗口
+	EnableEngineSetting       bool               `json:"enableEngineSetting"`       // 是否开启引擎设置
+	EnableBotNotification     bool               `json:"enableBotNotification"`     // 是否开启机器人广播
+	EnableRebootLater         bool               `json:"enableRebootLater"`         // 是否开启延时关闭&重启
 }
 
 // 默认配置
@@ -83,6 +87,8 @@ var defaultConfig = Config{
 	CheckInterval:             30,      // 30 秒
 	WebuiPort:                 "52000", // Webui 端口号
 	AutolaunchWebui:           true,
+	EnableUe4Debug:            false,
+	EnableEngineSetting:       true,
 	BackupInterval:            1800,                                                        // 30 分钟
 	MemoryCheckInterval:       30,                                                          // 30 秒
 	MemoryUsageThreshold:      80,                                                          // 80%
@@ -432,23 +438,31 @@ func AutoConfigurePaths(config *Config) error {
 			return err
 		}
 	}
-	engine, err := ReadEngineSettings(config)
-	if err != nil {
-		log.Printf("解析游戏engine.ini出错,错误%v", err)
-
-	} else {
-		config.Engine = engine
-		log.Println("从游戏engine.ini解析配置成功.")
-		log.Printf("从游戏engine.ini解析配置成功.%v", config.Engine)
-
-		// 将更新后的配置写回文件
-		updatedConfig, err := json.MarshalIndent(config, "", "  ")
+	if config.EnableEngineSetting {
+		engine, err := ReadEngineSettings(config)
 		if err != nil {
-			return err
+			log.Printf("解析游戏engine.ini出错,错误%v", err)
+
+		} else {
+			config.Engine = engine
+			log.Println("从游戏engine.ini解析配置成功.")
+			log.Printf("从游戏engine.ini解析配置成功.%v", config.Engine)
+
+			// 将更新后的配置写回文件
+			updatedConfig, err := json.MarshalIndent(config, "", "  ")
+			if err != nil {
+				return err
+			}
+			err = os.WriteFile("config.json", updatedConfig, 0644)
+			if err != nil {
+				return err
+			}
 		}
-		err = os.WriteFile("config.json", updatedConfig, 0644)
+	} else {
+		// 调用RemoveEngineSettings函数
+		err := RemoveEngineSettings(config)
 		if err != nil {
-			return err
+			log.Printf("从游戏engine.ini删除配置失败.%v\n", err)
 		}
 	}
 
@@ -846,6 +860,43 @@ func WriteEngineSettings(config *Config, engine *Engine) error {
 	return os.WriteFile(iniPath, []byte(content), 0644)
 }
 
+// RemoveEngineSettings 从INI文件中删除Engine结构体的数据
+func RemoveEngineSettings(config *Config) error {
+	var iniPath string
+
+	// 根据操作系统选择不同的路径
+	switch runtime.GOOS {
+	case "windows":
+		iniPath = filepath.Join(config.GameSavePath, "Config", "WindowsServer", "Engine.ini")
+	case "linux":
+		iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "Engine.ini")
+	default:
+		iniPath = filepath.Join(config.GameSavePath, "Config", "LinuxServer", "Engine.ini")
+	}
+
+	// 读取INI文件的所有内容
+	fileContent, err := ioutil.ReadFile(iniPath)
+	if err != nil {
+		return err
+	}
+
+	// 将文件内容转换为字符串
+	content := string(fileContent)
+
+	// 定义要删除的节的列表
+	sectionsToRemove := []string{
+		"/script/engine.player",
+		"/script/socketsubsystemepic.epicnetdriver",
+		"/script/engine.engine",
+	}
+
+	// 删除指定的节
+	updatedContent := removeIniSections(content, sectionsToRemove)
+
+	// 将更新后的内容写回文件
+	return os.WriteFile(iniPath, []byte(updatedContent), 0644)
+}
+
 // updateIniSection 更新或添加INI文件中的特定section
 func updateIniSection(content, sectionName string, data interface{}) string {
 	// 将结构体转换为键值对映射
@@ -966,4 +1017,40 @@ func structToMap(data interface{}) map[string]string {
 	}
 
 	return kvMap
+}
+
+// removeIniSections 从INI文件内容中删除指定的节
+func removeIniSections(content string, sectionsToRemove []string) string {
+	var lines = strings.Split(content, "\n")
+	var updatedLines []string
+	var inSectionToRemove bool
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		// 检查当前行是否标记了新的节的开始
+		if strings.HasPrefix(trimmedLine, "[") && strings.HasSuffix(trimmedLine, "]") {
+			sectionName := trimmedLine[1 : len(trimmedLine)-1] // 移除括号获取节名
+			inSectionToRemove = contains(sectionsToRemove, sectionName)
+			if !inSectionToRemove {
+				// 如果当前节不在要删除的列表中，保留这一行
+				updatedLines = append(updatedLines, line)
+			}
+		} else if !inSectionToRemove {
+			// 如果当前不在要删除的节中，保留这一行
+			updatedLines = append(updatedLines, line)
+		}
+		// 如果inSectionToRemove为true，则自动跳过这一行，不将其添加到updatedLines中
+	}
+
+	return strings.Join(updatedLines, "\n")
+}
+
+// contains 检查字符串切片中是否包含特定的字符串
+func contains(slice []string, val string) bool {
+	for _, item := range slice {
+		if item == val {
+			return true
+		}
+	}
+	return false
 }

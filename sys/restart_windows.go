@@ -16,6 +16,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/hoshinonyaruko/palworld-go/bot"
 	"github.com/hoshinonyaruko/palworld-go/config"
 	"github.com/hoshinonyaruko/palworld-go/mod"
 	"github.com/hoshinonyaruko/palworld-go/status"
@@ -80,10 +81,11 @@ func setConsoleTitleWindows(title string) error {
 	return nil
 }
 
-func KillProcess() error {
+func KillProcess(config config.Config) error {
 	pid := status.GetGlobalPid()
 	subPid := status.GetGlobalSubPid()
-
+	//发送机器人推送
+	bot.SendCommandMessages("stop", config)
 	fmt.Printf("获取到当前服务端进程pid:%v\n", pid)
 	if pid == 0 {
 		return fmt.Errorf("invalid PID: %d", pid)
@@ -206,6 +208,8 @@ func RestartService(config config.Config) {
 	var exePath string
 	var args []string
 
+	//发送机器人推送
+	bot.SendCommandMessages("run", config)
 	if config.CommunityServer {
 		exePath = filepath.Join(config.SteamPath, "Steam.exe")
 		args = []string{"-applaunch", "2394010"}
@@ -213,6 +217,12 @@ func RestartService(config config.Config) {
 		err := mod.CheckAndWriteFiles(filepath.Join(config.GamePath, "Pal", "Binaries", "Win64"))
 		if err != nil {
 			log.Printf("Failed to write files: %v", err)
+			return
+		}
+		// 调用ConfigureUE4DebugSettings
+		err = ConfigureUE4DebugSettings(config.GamePath, config.EnableUe4Debug)
+		if err != nil {
+			log.Printf("Failed to configure UE4 debug settings: %v", err)
 			return
 		}
 		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServerInject.exe")
@@ -264,4 +274,30 @@ func RestartService(config config.Config) {
 		status.SetGlobalPid(cmd.Process.Pid)
 	}
 
+}
+
+// ConfigureUE4DebugSettings 根据config.EnableUe4Debug的值配置UE4SS-settings.ini文件
+func ConfigureUE4DebugSettings(gamePath string, enableDebug bool) error {
+	iniPath := filepath.Join(gamePath, "Pal", "Binaries", "Win64", "UE4SS-settings.ini")
+	cfg, err := ini.Load(iniPath)
+	if err != nil {
+		return fmt.Errorf("failed to load INI file: %v", err)
+	}
+
+	// 根据enableDebug的值设置对应的配置项
+	debugVal := 0
+	if enableDebug {
+		debugVal = 1
+	}
+
+	cfg.Section("Debug").Key("ConsoleEnabled").SetValue(fmt.Sprintf("%d", 1)) //开启console输出
+	cfg.Section("Debug").Key("GuiConsoleEnabled").SetValue(fmt.Sprintf("%d", debugVal))
+	cfg.Section("Debug").Key("GuiConsoleVisible").SetValue(fmt.Sprintf("%d", debugVal))
+
+	// 保存更改
+	if err := cfg.SaveTo(iniPath); err != nil {
+		return fmt.Errorf("failed to save INI file: %v", err)
+	}
+
+	return nil
 }
