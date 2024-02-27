@@ -92,8 +92,8 @@ func RestartService(config config.Config) {
 		args = append(args, "-publiclobby")
 	}
 	// 如果RCON启用，则添加RCON参数
-	if config.worldSettings.RCONEnabled {
-		args = append(args, fmt.Sprintf("-rconport=%d", config.worldSettings.RconPort))
+	if config.WorldSettings.RCONEnabled {
+		args = append(args, fmt.Sprintf("-rconport=%d", config.WorldSettings.RconPort))
 	}
 	args = append(args, config.ServerOptions...) // 添加GameWorldSettings参数
 
