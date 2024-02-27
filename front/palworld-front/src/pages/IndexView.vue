@@ -750,6 +750,11 @@
             class="q-my-md"
           />
           <q-toggle
+            v-model="config.worldSettings.showPlayerList"
+            label="启用服务器内可以查看其他玩家列表"
+            class="q-my-md"
+          />
+          <q-toggle
             v-model="config.worldSettings.isMultiplay"
             label="是否多人游戏"
             class="q-my-md"
