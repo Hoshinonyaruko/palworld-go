@@ -242,7 +242,7 @@ func RestartService(config config.Config) {
 	if config.CommunityServer {
 		// https://tech.palworldgame.com/getting-started/deploy-community-server
 		// 启动社区服务器可以直接使用PalSerer.exe 启动
-		append(args, "-publiclobby")
+		args = append(args, "-publiclobby")
 	}
 
 	// 如果RCON启用，则添加RCON参数

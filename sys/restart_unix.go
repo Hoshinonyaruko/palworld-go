@@ -89,7 +89,7 @@ func RestartService(config config.Config) {
 		fmt.Sprintf("-players=%d", config.WorldSettings.ServerPlayerMaxNum),
 	}
 	if config.CommunityServer {
-		append(args, "-publiclobby")
+		args = append(args, "-publiclobby")
 	}
 	// 如果RCON启用，则添加RCON参数
 	if config.worldSettings.RCONEnabled {
