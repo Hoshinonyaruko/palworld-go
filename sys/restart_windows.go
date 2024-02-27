@@ -247,7 +247,7 @@ func RestartService(config config.Config) {
 
 	// 如果RCON启用，则添加RCON参数
 	if config.worldSettings.RCONEnabled {
-		args = append(args, fmt.Sprintf("-rconport=%s", config.worldSettings.RconPort))
+		args = append(args, fmt.Sprintf("-rconport=%d", config.worldSettings.RconPort))
 	}
 	args = append(args, config.ServerOptions...) // 添加GameWorldSettings参数
 
