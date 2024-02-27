@@ -13,7 +13,6 @@
     "build": "quasar build"
   },
   "dependencies": {
-    "@quasar/cli": "^2.3.0",
     "@quasar/extras": "^1.16.4",
     "axios": "^1.2.1",
     "chart.js": "^4.4.1",
