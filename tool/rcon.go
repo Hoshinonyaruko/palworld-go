@@ -145,7 +145,7 @@ func Broadcast(config config.Config, message string) error {
 		}
 		defer exec.Close()
 
-		response, err := exec.Execute("Broadcast " + strings.ReplaceAll(message, " ", "_"))
+		response, err := exec.Execute("broadcast " + strings.ReplaceAll(message, " ", "_"))
 		if err != nil {
 			return err
 		}

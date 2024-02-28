@@ -210,10 +210,7 @@ func RestartService(config config.Config) {
 
 	//发送机器人推送
 	bot.SendCommandMessages("run", config)
-	if config.CommunityServer {
-		exePath = filepath.Join(config.SteamPath, "Steam.exe")
-		args = []string{"-applaunch", "2394010"}
-	} else if config.UseDll {
+	if config.UseDll {
 		err := mod.CheckAndWriteFiles(filepath.Join(config.GamePath, "Pal", "Binaries", "Win64"))
 		if err != nil {
 			log.Printf("Failed to write files: %v", err)
@@ -242,6 +239,17 @@ func RestartService(config config.Config) {
 			fmt.Sprintf("-port=%d", config.WorldSettings.PublicPort),
 			fmt.Sprintf("-players=%d", config.WorldSettings.ServerPlayerMaxNum),
 		}
+	}
+
+	if config.CommunityServer {
+		// https://tech.palworldgame.com/getting-started/deploy-community-server
+		// 启动社区服务器可以直接使用PalSerer.exe 启动
+		args = append(args, "-publiclobby")
+	}
+
+	// 如果RCON启用，则添加RCON参数
+	if config.WorldSettings.RconEnabled {
+		args = append(args, "-rcon")
 	}
 
 	args = append(args, config.ServerOptions...) // 添加GameWorldSettings参数
