@@ -127,7 +127,7 @@ func Broadcast(config config.Config, message string) error {
 	}
 	defer exec.Close()
 
-	response, err := exec.Execute("Broadcast "+strings.ReplaceAll(message, " ", "_"), config.UseDll)
+	response, err := exec.Execute("broadcast "+strings.ReplaceAll(message, " ", "_"), config.UseDll)
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,6 @@ func Broadcast(config config.Config, message string) error {
 		return errors.New(response)
 	}
 	return nil
-
 }
 
 func Shutdown(config config.Config, seconds string, message string) error {

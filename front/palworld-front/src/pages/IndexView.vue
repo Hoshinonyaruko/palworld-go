@@ -72,7 +72,7 @@
           />
           <q-toggle
             v-model="config.communityServer"
-            label="启动为社区服务器(需设置steam路径)"
+            label="启动为社区服务器"
             class="q-my-md"
           />
           <q-toggle
@@ -150,12 +150,6 @@
             filled
             v-model="config.backupPath"
             label="游戏存档备份存放路径"
-            class="q-my-md"
-          />
-          <q-input
-            filled
-            v-model="config.steamPath"
-            label="Steam安装路径(启动社区服务器用)"
             class="q-my-md"
           />
           <q-input
@@ -753,6 +747,11 @@
           <q-toggle
             v-model="config.worldSettings.enableDefenseOtherGuildPlayer"
             label="启用对其他公会玩家的防御"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.worldSettings.showPlayerList"
+            label="启用服务器内可以查看其他玩家列表"
             class="q-my-md"
           />
           <q-toggle

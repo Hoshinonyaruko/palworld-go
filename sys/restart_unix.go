@@ -90,6 +90,15 @@ func RestartService(config config.Config) {
 		fmt.Sprintf("-players=%d", config.WorldSettings.ServerPlayerMaxNum),
 	}
 
+	if config.CommunityServer {
+		args = append(args, "-publiclobby")
+	}
+
+	// 如果RCON启用，则添加RCON参数
+	if config.WorldSettings.RconEnabled {
+		args = append(args, "-rcon")
+	}
+
 	args = append(args, config.ServerOptions...) // 添加GameWorldSettings参数
 
 	// 执行启动命令
