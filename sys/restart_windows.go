@@ -214,7 +214,7 @@ func RestartService(config config.Config) {
 		exePath = filepath.Join(config.SteamPath, "Steam.exe")
 		args = []string{"-applaunch", "2394010"}
 	} else if config.UseDll {
-		err := mod.CheckAndWriteFiles(filepath.Join(config.GamePath, "Pal", "Binaries", "Win64"))
+		err := mod.CheckAndWriteFiles(filepath.Join(config.GamePath, "Pal", "Binaries", "Win64"), config)
 		if err != nil {
 			log.Printf("Failed to write files: %v", err)
 			return
@@ -225,14 +225,23 @@ func RestartService(config config.Config) {
 			log.Printf("Failed to configure UE4 debug settings: %v", err)
 			return
 		}
-		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServerInject.exe")
+		//exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServerInject.exe")
+		//只要文件存在就会自动注入,无需PalServerInject.exe了
+		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServer-Win64-Test-Cmd.exe")
 		args = []string{
+			"Pal",
 			"-RconEnabled=True",
 			fmt.Sprintf("-AdminPassword=%s", config.WorldSettings.AdminPassword),
 			fmt.Sprintf("-port=%d", config.WorldSettings.PublicPort),
 			fmt.Sprintf("-players=%d", config.WorldSettings.ServerPlayerMaxNum),
 		}
 	} else {
+		err := mod.RemoveEmbeddedFiles(filepath.Join(config.GamePath, "Pal", "Binaries", "Win64"))
+		if err != nil {
+			log.Printf("Failed to remove files: %v", err)
+			return
+		}
+		//在这里加一个CheckAndWriteFiles的删除版本(因为只要文件存在就会自动注入)
 		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServer-Win64-Test-Cmd.exe")
 		//exePath = "\"" + exePath + "\""
 		args = []string{
@@ -248,31 +257,32 @@ func RestartService(config config.Config) {
 
 	// 执行启动命令
 	log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))
-	if config.UseDll && runtime.GOOS == "windows" {
-		log.Printf("use bat")
-		RunViaBatch(config, exePath, args)
-		log.Printf("use bat success")
-	} else {
-		cmd := exec.Command(exePath, args...)
-		cmd.Dir = config.GamePath // 设置工作目录为游戏路径
-		if runtime.GOOS == "windows" {
-			// 仅在Windows平台上设置
-			cmd.SysProcAttr = &syscall.SysProcAttr{
-				CreationFlags: 16,
-			}
+	// if config.UseDll && runtime.GOOS == "windows" {
+	// 	log.Printf("use bat")
+	// 	RunViaBatch(config, exePath, args)
+	// 	log.Printf("use bat success")
+	// } else {
+	// 	//old
+	// }
+	cmd := exec.Command(exePath, args...)
+	cmd.Dir = config.GamePath // 设置工作目录为游戏路径
+	if runtime.GOOS == "windows" {
+		// 仅在Windows平台上设置
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			CreationFlags: 16,
 		}
-
-		// 启动进程
-		if err := cmd.Start(); err != nil {
-			log.Printf("Failed to restart game server: %v", err)
-		} else {
-			log.Printf("Game server restarted successfully")
-		}
-
-		// 获取并打印 PID
-		log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
-		status.SetGlobalPid(cmd.Process.Pid)
 	}
+
+	// 启动进程
+	if err := cmd.Start(); err != nil {
+		log.Printf("Failed to restart game server: %v", err)
+	} else {
+		log.Printf("Game server restarted successfully")
+	}
+
+	// 获取并打印 PID
+	log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
+	status.SetGlobalPid(cmd.Process.Pid)
 
 }
 
@@ -289,8 +299,8 @@ func ConfigureUE4DebugSettings(gamePath string, enableDebug bool) error {
 	if enableDebug {
 		debugVal = 1
 	}
-
-	cfg.Section("Debug").Key("ConsoleEnabled").SetValue(fmt.Sprintf("%d", 1)) //开启console输出
+	//踩坑,palguard这里需要0,代表关闭输出,但是却有输出,可能是什么冲突吧.
+	cfg.Section("Debug").Key("ConsoleEnabled").SetValue(fmt.Sprintf("%d", 0)) //开启console输出
 	cfg.Section("Debug").Key("GuiConsoleEnabled").SetValue(fmt.Sprintf("%d", debugVal))
 	cfg.Section("Debug").Key("GuiConsoleVisible").SetValue(fmt.Sprintf("%d", debugVal))
 
