@@ -1,0 +1,194 @@
+run:
+  skip-dirs:
+    - vendor/
+  skip-files:
+    - ".*_test.go$"
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+
+# SEE: https://golangci-lint.run/usage/configuration/
+linters-settings:
+  dupl:
+    # tokens count to trigger issue, 150 by default
+    threshold: 100
+  errcheck:
+    # report about not checking of errors in type assertions: `a := b.(MyStruct)`;
+    # default is false: such cases aren't reported by default.
+    check-type-assertions: false
+    # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
+    # default is false: such cases aren't reported by default.
+    check-blank: false
+  funlen:
+    # default is 60
+    lines: 60
+    # default is 40
+    statements: 40
+  gocognit:
+    # minimal code complexity to report, 30 by default (but we recommend 10-20)
+    min-complexity: 15
+  goconst:
+    # minimal length of string constant, 3 by default
+    min-len: 3
+    # minimal occurrences count to trigger, 3 by default
+    min-occurrences: 2
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+      - experimental
+    disabled-checks:
+      - paramTypeCombine
+    #  - whyNoLint
+    #  - commentedOutCode
+  gocyclo:
+    # minimal code complexity to report, 30 by default (but we recommend 10-20)
+    min-complexity: 15
+  cyclop:
+    max-complexity: 15
+  godox:
+    keywords:
+      - "BUG"
+      - "FIXME"
+    #  - "TODO"
+  goimports:
+    # put imports beginning with prefix after 3rd-party packages;
+    # it's a comma-separated list of prefixes
+    local-prefixes: github.com/golangci/golangci-lint
+  golint:
+    # minimal confidence for issues, default is 0.8
+    min-confidence: 0
+  gomnd:
+    settings:
+      mnd:
+        # the list of enabled checks, see https://github.com/tommy-muehle/go-mnd/#checks for description.
+        checks: argument,case,condition,operation,return,assign
+  govet:
+    # report about shadowed variables.
+    check-shadowing: true
+  depguard:
+    list-type: blacklist
+    packages:
+      # logging is allowed only by logutils.Log, logrus
+      # is allowed to use only in logutils package
+      - github.com/Sirupsen/logrus
+      - gopkg.in/sirupsen/logrus.v0
+      - gopkg.in/sirupsen/logrus.v1
+      - gopkg.in/Sirupsen/logrus.v0
+      - gopkg.in/Sirupsen/logrus.v1
+  lll:
+    line-length: 120 # 120 is default
+  maligned:
+    # print struct with more effective memory layout or not, false by default
+    suggest-new: true
+  misspell:
+    locale: US
+  nakedret:
+    # make an issue if func has more lines of code than this setting and it has naked returns; default is 30
+    max-func-lines: 30
+  unparam:
+    # Inspect exported functions, default is false. Set to true if no external program/library imports your code.
+    # XXX: if you enable this setting, unparam will report a lot of false-positives in text editors:
+    # if it's called for subdir of a project it can't find external interfaces. All text editor integrations
+    # with golangci-lint call it on a directory with the changed file.
+    check-exported: false
+  unused:
+    # treat code as a program (not a library) and report unused exported identifiers; default is false.
+    # XXX: if you enable this setting, unused will report a lot of false-positives in text editors:
+    # if it's called for subdir of a project it can't find funcs usages. All text editor integrations
+    # with golangci-lint call it on a directory with the changed file.
+    check-exported: false
+  whitespace:
+    multi-if: false   # Enforces newlines (or comments) after every multi-line if statement
+    multi-func: false # Enforces newlines (or comments) after every multi-line function signature
+  wsl:
+    # If true append is only allowed to be cuddled if appending value is
+    # matching variables, fields or types on line above. Default is true.
+    strict-append: true
+    # Allow calls and assignments to be cuddled as long as the lines have any
+    # matching variables, fields or types. Default is true.
+    allow-assign-and-call: true
+    # Allow multiline assignments to be cuddled. Default is true.
+    allow-multiline-assign: true
+    # Allow declarations (var) to be cuddled.
+    allow-cuddle-declarations: true
+    # Allow trailing comments in ending of blocks
+    allow-trailing-comment: true
+    # Force newlines in end of case at this limit (0 = never).
+    force-case-trailing-whitespace: 0
+  varnamelen:
+    # The longest distance, in source lines, that is being considered a "small scope." (defaults to 5)
+    # Variables used in at most this many lines will be ignored.
+    max-distance: 5
+    # The minimum length of a variable's name that is considered "long." (defaults to 3)
+    # Variable names that are at least this long will be ignored.
+    min-name-length: 3
+    # Check method receivers. (defaults to false)
+    check-receiver: false
+    # Check named return values. (defaults to false)
+    check-return: false
+    # Check type parameters. (defaults to false)
+    check-type-param: false
+    # Ignore "ok" variables that hold the bool return value of a type assertion. (defaults to false)
+    ignore-type-assert-ok: false
+    # Ignore "ok" variables that hold the bool return value of a map index. (defaults to false)
+    ignore-map-index-ok: false
+    # Ignore "ok" variables that hold the bool return value of a channel receive. (defaults to false)
+    ignore-chan-recv-ok: false
+    # Optional list of variable names that should be ignored completely. (defaults to empty list)
+    ignore-names:
+      - err
+    # Optional list of variable declarations that should be ignored completely. (defaults to empty list)
+    # Entries must be in one of the following forms (see below for examples):
+    # - for variables, parameters, named return values, method receivers, or type parameters:
+    #   <name> <type>  (<type> can also be a pointer/slice/map/chan/...)
+    # - for constants: const <name>
+    ignore-decls:
+      - t testing.T
+      - f *foo.Bar
+      - e error
+      - i int
+      - const C
+      - T any
+      - m map[string]int
+      - x int
+      - y int
+      - w io.Writer
+      - r io.Reader
+      - i int64
+      - f *os.File
+      - m int
+      - n int64
+      - i int32
+      - c *Context
+
+linters:
+  enable-all: true
+  disable:
+    - interfacer # is deprecated (since v1.38.0)
+    - scopelint # is deprecated (since v1.39.0)
+    - golint # is deprecated (since v1.41.0)
+    - maligned # is deprecated (since v1.38.0)
+    - ifshort # is deprecated (since v1.48.0)
+    - deadcode # is deprecated (since v1.49.0)
+    - nosnakecase # is deprecated (since v1.48.1)
+    - varcheck # is deprecated (since v1.49.0)
+    - exhaustivestruct # is deprecated (since v1.46.0)
+    - structcheck # is deprecated (since v1.49.0)
+    - rowserrcheck # is disabled because of generics
+    - sqlclosecheck # is disabled because of generics
+    - structcheck # is disabled because of generics
+    - wastedassign # is disabled because of generics
+    - dupword
+    - gomnd
+    - wrapcheck
+
+issues:
+  exclude:
+    - "don't use ALL_CAPS in Go names; use CamelCase" # golint
+    - "ST1003: should not use ALL_CAPS in Go names; use CamelCase instead" # stylecheck
+    - "shadow: declaration of \"err\"" # govet
+    - "DefaultSettings`? is a global variable" # gochecknoglobals
+    - "are|is missing in" # exhaustivestruct # v1.33

@@ -2,6 +2,8 @@ module github.com/hoshinonyaruko/palworld-go
 
 go 1.21.1
 
+replace github.com/gorcon/rcon => ./rcon
+
 require github.com/gorcon/rcon v1.3.4 // direct
 
 require (
