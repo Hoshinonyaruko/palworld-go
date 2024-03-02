@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -233,6 +232,16 @@ func CombinedMiddleware(config config.Config, db *bbolt.DB) gin.HandlerFunc {
 				listPlayerCounts(c, config, db)
 				return
 			}
+			// 处理 /api/getpalguardjson 的Get请求
+			if c.Request.URL.Path == "/api/getpalguardjson" && c.Request.Method == http.MethodGet {
+				HandleGetPalguardJson(c)
+				return
+			}
+			// 处理 /api/savepalguardjson 的POST请求
+			if c.Request.URL.Path == "/api/savepalguardjson" && c.Request.Method == http.MethodPost {
+				HandleSavePalguardJson(c)
+				return
+			}
 
 		} else if strings.HasPrefix(c.Request.URL.Path, "/bot") {
 			bot.GensokyoHandlerClosure(c, config)
@@ -324,40 +333,18 @@ func (c *Client) readPump(config config.Config) {
 			log.Println("RCON客户端初始化失败,无法处理webui面板请求,请按教程正确开启rcon和设置服务端admin密码")
 			return
 		}
-		// 检查消息是否以"Broadcast"开头 且注入了DLL 可以使用第三方rcon
-		if strings.HasPrefix(string(message), "broadcast") && config.UseDll {
-			// 使用本地方式发送
-			dllPort, err := strconv.Atoi(config.DllPort)
-			if err != nil {
-				log.Printf("Error converting DllPort from string to int: %v", err)
-				// 處理錯誤，例如返回或設置一個默認值
-				return
-			}
-			base := "http://127.0.0.1:" + strconv.Itoa(dllPort) + "/rcon?text="
-			messageText := url.QueryEscape(string(message))
-			fullURL := base + messageText
 
-			// 发送HTTP请求
-			resp, err := http.Get(fullURL)
-			if err != nil {
-				log.Printf("Error sending HTTP request: %v", err)
-				return
-			}
-			defer resp.Body.Close()
-			// 可以添加更多的响应处理逻辑
-			log.Println("Message sent successfully via HTTP")
-		} else {
-			// 使用原始方式发送
-			response, err := rconClient.Conn.Execute(string(message))
-			if err != nil {
-				log.Printf("Error sending message: %v", err)
-			}
-			if err != nil {
-				log.Printf("RCON execute error: %v", err)
-				continue
-			}
-			c.send <- response
+		// 使用原始方式发送
+		response, err := rconClient.Conn.Execute(string(message), config.UseDll)
+		if err != nil {
+			log.Printf("Error sending message: %v", err)
 		}
+		if err != nil {
+			log.Printf("RCON execute error: %v", err)
+			continue
+		}
+		c.send <- response
+
 	}
 }
 
@@ -1529,4 +1516,100 @@ func updateBanList(banListPath, steamID string) (bool, error) {
 	}
 
 	return updated, nil
+}
+
+// HandleGetPalguardJson 返回palguard.json的内容
+func HandleGetPalguardJson(c *gin.Context) {
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	// 定义相对路径到palguard.json
+	relativePath := "..\\PalServer\\Pal\\Binaries\\Win64\\palguard.json"
+
+	// 将相对路径转换为绝对路径
+	absPath, err := filepath.Abs(relativePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error: Unable to resolve file path"})
+		return
+	}
+
+	// 读取json文件
+	jsonFile, err := os.ReadFile(absPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error: Unable to read file"})
+		return
+	}
+
+	// 将文件内容解析为JSON
+	var jsonObj interface{}
+	err = json.Unmarshal(jsonFile, &jsonObj)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error: Unable to parse JSON"})
+		return
+	}
+
+	// 返回文件内容
+	c.JSON(http.StatusOK, jsonObj)
+}
+
+// HandleSavePalguardJson 从请求体中读取JSON并写入palguard.json
+func HandleSavePalguardJson(c *gin.Context) {
+	// 从请求中获取cookie
+	cookieValue, err := c.Cookie("login_cookie")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Cookie not provided"})
+		return
+	}
+
+	// 使用ValidateCookie函数验证cookie
+	isValid, err := ValidateCookie(cookieValue)
+	if err != nil || !isValid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid cookie"})
+		return
+	}
+
+	// 解析请求体中的JSON数据
+	var newPalguardData interface{}
+	if err := c.ShouldBindJSON(&newPalguardData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 将新的数据转换为JSON格式
+	jsonData, err := json.Marshal(newPalguardData)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error: Unable to marshal JSON"})
+		return
+	}
+
+	// 定义相对路径到palguard.json
+	relativePath := "..\\PalServer\\Pal\\Binaries\\Win64\\palguard.json"
+
+	// 将相对路径转换为绝对路径
+	absPath, err := filepath.Abs(relativePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error: Unable to resolve file path"})
+		return
+	}
+
+	// 写入JSON数据到palguard.json文件
+	if err := os.WriteFile(absPath, jsonData, 0644); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error: Unable to write file"})
+		return
+	}
+
+	// 响应客户端
+	c.JSON(http.StatusOK, gin.H{"message": "Palguard data updated successfully"})
+
 }

@@ -16,6 +16,7 @@
         <q-tab name="server-check" label="主机管理" />
         <q-tab name="save-manage" label="存档管理" />
         <q-tab name="bot-manage" label="机器人管理" />
+        <q-tab name="palguard-manage" label="palguard管理" />
       </q-tabs>
     </q-header>
 
@@ -39,13 +40,13 @@
             @click="restartServer"
             class="q-mt-md"
           />
-           <!-- 答疑按钮 -->
-           <q-btn
-           color="secondary"
-           label="遇到问题,答疑按钮"
-           @click="getGroupLink"
-           class="q-mt-md"
-         />
+          <!-- 答疑按钮 -->
+          <q-btn
+            color="secondary"
+            label="遇到问题,答疑按钮"
+            @click="getGroupLink"
+            class="q-mt-md"
+          />
           <!-- 文本输入框 -->
           <q-input
             filled
@@ -87,6 +88,11 @@
           <q-toggle
             v-model="config.enableUe4Debug"
             label="是否开启UE4窗口(关闭可以解决闪退,内存占用问题)"
+            class="q-my-md"
+          />
+          <q-toggle
+            v-model="config.overrideDLL"
+            label="是否覆盖dll(不开请自己管理palguard和ue4的dll)"
             class="q-my-md"
           />
           <q-toggle
@@ -318,20 +324,20 @@
         </div>
       </q-page>
       <q-page padding v-if="tab === 'server'">
-         <!-- 保存按钮 -->
-         <q-btn
-         color="primary"
-         label="保存"
-         @click="saveConfig"
-         class="q-mt-md"
-       />
-       <!-- 重启服务端按钮 -->
-       <q-btn
-         color="secondary"
-         label="重启服务端"
-         @click="restartServer"
-         class="q-mt-md"
-       />
+        <!-- 保存按钮 -->
+        <q-btn
+          color="primary"
+          label="保存"
+          @click="saveConfig"
+          class="q-mt-md"
+        />
+        <!-- 重启服务端按钮 -->
+        <q-btn
+          color="secondary"
+          label="重启服务端"
+          @click="restartServer"
+          class="q-mt-md"
+        />
         <!-- 服务端配置修改页面内容 -->
         <div class="q-gutter-xs q-mt-md">
           <div class="text-subtitle2">服务端配置修改</div>
@@ -1056,6 +1062,10 @@
       <q-page padding v-if="tab === 'bot-manage'">
         <bot-manage />
       </q-page>
+      <!-- palguard管理组件 -->
+      <q-page padding v-if="tab === 'palguard-manage'">
+        <palguard-manage />
+      </q-page>
     </q-page-container>
   </q-layout>
 </template>
@@ -1070,6 +1080,9 @@ import PlayerManage from 'components/PlayerManage.vue';
 import SaveManage from 'components/SaveManage.vue';
 import BotManage from 'components/BotManage.vue';
 import BanManage from 'components/BanManage.vue';
+import PalguardManage from 'components/PalguardManage.vue';
+
+const $q = useQuasar();
 
 //给components传递数据
 const props = defineProps({
@@ -1146,7 +1159,6 @@ function removePlayer(index) {
 }
 
 onMounted(async () => {
-  const $q = useQuasar();
   try {
     const response = await axios.get('/api/getjson', {
       withCredentials: true, // 确保携带 cookie
@@ -1166,7 +1178,6 @@ onMounted(async () => {
 });
 
 const saveConfig = async () => {
-  const $q = useQuasar();
   try {
     await axios.post('/api/savejson', config.value, {
       withCredentials: true, // 确保携带 cookie
