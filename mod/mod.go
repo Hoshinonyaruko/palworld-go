@@ -71,9 +71,8 @@ func BuildEmbeddedFilesMap() (map[string]struct{}, error) {
 	return embeddedFilesPaths, err
 }
 
-// RemoveEmbeddedFiles 遍历嵌入文件列表，如果它们存在于指定路径下，则删除它们
+// RemoveEmbeddedFiles 遍历嵌入文件列表，如果它们存在于指定路径下且为exe或dll文件，则删除它们
 func RemoveEmbeddedFiles(path string) error {
-	// 动态构建嵌入文件的路径映射
 	embeddedFilesPaths, err := BuildEmbeddedFilesMap()
 	if err != nil {
 		return err
@@ -84,11 +83,17 @@ func RemoveEmbeddedFiles(path string) error {
 		relativePath := strings.TrimPrefix(embeddedPath, "embeds/")
 		externalPath := filepath.Join(path, relativePath)
 
-		// 检查文件或目录是否存在于文件系统中
-		if _, err := os.Stat(externalPath); err == nil {
-			// 如果存在，删除文件或目录
-			if err := os.RemoveAll(externalPath); err != nil {
-				return err
+		// 获取文件扩展名
+		ext := filepath.Ext(externalPath)
+
+		// 如果文件扩展名为.exe或.dll，则尝试删除
+		if ext == ".exe" || ext == ".dll" {
+			// 检查文件是否存在
+			if _, err := os.Stat(externalPath); err == nil {
+				// 如果存在，删除文件
+				if err := os.Remove(externalPath); err != nil {
+					return err
+				}
 			}
 		}
 	}
