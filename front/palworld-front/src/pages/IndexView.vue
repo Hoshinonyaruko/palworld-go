@@ -96,6 +96,11 @@
             class="q-my-md"
           />
           <q-toggle
+            v-model="config.usePalserverexe"
+            label="是否使用Palserverexe启动服务端(开启=有字版,不开启=无字版)"
+            class="q-my-md"
+          />
+          <q-toggle
             v-model="config.enableEngineSetting"
             label="是否启用引擎配置,部分电脑修改引擎配置会卡顿,可关闭"
             class="q-my-md"

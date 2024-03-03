@@ -65,6 +65,7 @@ type Config struct {
 	EnableBotNotification     bool               `json:"enableBotNotification"`     // 是否开启机器人广播
 	EnableRebootLater         bool               `json:"enableRebootLater"`         // 是否开启延时关闭&重启
 	OverrideDLL               bool               `json:"overrideDLL"`               // 是否由palgo中内置的dll覆盖游戏目录的dll
+	UsePalServerExe           bool               `json:"usePalserverexe"`           // 是否维持传统启动行为
 }
 
 // 默认配置
@@ -91,6 +92,7 @@ var defaultConfig = Config{
 	EnableUe4Debug:            false,
 	EnableEngineSetting:       true,
 	OverrideDLL:               true,
+	UsePalServerExe:           false,
 	BackupInterval:            1800,                                                        // 30 分钟
 	MemoryCheckInterval:       30,                                                          // 30 秒
 	MemoryUsageThreshold:      80,                                                          // 80%
