@@ -4,6 +4,7 @@
 package sys
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -224,23 +225,26 @@ func RestartService(config config.Config) {
 		}
 		//exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServerInject.exe")
 		//只要文件存在就会自动注入,无需PalServerInject.exe了
-		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServer-Win64-Test-Cmd.exe")
+
+	} else {
+		//在这里加一个CheckAndWriteFiles的删除版本(因为只要文件存在就会自动注入)
+		err := mod.RemoveEmbeddedFiles(filepath.Join(config.GamePath, "Pal", "Binaries", "Win64"))
+		if err != nil {
+			log.Printf("Failed to remove files: %v", err)
+			return
+		}
+	}
+	//自由选择有字版 无字版
+	if config.UsePalServerExe {
+		exePath = filepath.Join(config.GamePath, "PalServer.exe")
 		args = []string{
-			"Pal",
 			"-RconEnabled=True",
 			fmt.Sprintf("-AdminPassword=%s", config.WorldSettings.AdminPassword),
 			fmt.Sprintf("-port=%d", config.WorldSettings.PublicPort),
 			fmt.Sprintf("-players=%d", config.WorldSettings.ServerPlayerMaxNum),
 		}
 	} else {
-		err := mod.RemoveEmbeddedFiles(filepath.Join(config.GamePath, "Pal", "Binaries", "Win64"))
-		if err != nil {
-			log.Printf("Failed to remove files: %v", err)
-			return
-		}
-		//在这里加一个CheckAndWriteFiles的删除版本(因为只要文件存在就会自动注入)
 		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServer-Win64-Test-Cmd.exe")
-		//exePath = "\"" + exePath + "\""
 		args = []string{
 			"Pal",
 			"-RconEnabled=True",
@@ -290,8 +294,53 @@ func RestartService(config config.Config) {
 
 	// 获取并打印 PID
 	log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
-	status.SetGlobalPid(cmd.Process.Pid)
+	//使用PalServer.exe启动获取到的pid不一致
+	if config.UsePalServerExe {
+		// PowerShell脚本模板
+		psScript := `
+					$processName = "%s"
+					$configGamePath = "%s"
+					$matchingProcesses = Get-WmiObject Win32_Process | Where-Object { $_.Name -eq $processName }
+					foreach ($process in $matchingProcesses) {
+						$commandLine = $process.CommandLine
+						if ($commandLine -and $commandLine.Contains($configGamePath)) {
+							Write-Output $process.ProcessId
+							break
+						}
+					}
+					`
+		// 使用config.GamePath和processName填充PowerShell脚本模板
+		psScriptFormatted := fmt.Sprintf(psScript, "PalServer-Win64-Test-Cmd.exe", config.GamePath)
 
+		// 调用PowerShell执行脚本
+		cmd := exec.Command("powershell", "-Command", psScriptFormatted)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		err := cmd.Run()
+		if err != nil {
+			fmt.Println("Failed to execute PowerShell script:", err)
+			return
+		}
+
+		output := strings.TrimSpace(out.String())
+		if output == "" {
+			fmt.Println("No matching process found")
+			return
+		}
+
+		fmt.Println("Matching Real Server PID:", output)
+
+		// 将output字符串转换为int
+		pid, err := strconv.Atoi(output)
+		if err != nil {
+			fmt.Println("Error converting PID from string to int:", err)
+			return
+		}
+
+		status.SetGlobalPid(pid)
+	} else {
+		status.SetGlobalPid(cmd.Process.Pid)
+	}
 }
 
 // ConfigureUE4DebugSettings 根据config.EnableUe4Debug的值配置UE4SS-settings.ini文件
