@@ -238,19 +238,12 @@ func RestartService(config config.Config) {
 	if config.UsePalServerExe {
 		exePath = filepath.Join(config.GamePath, "PalServer.exe")
 		args = []string{
-			"Pal",
 			"-RconEnabled=True",
 			fmt.Sprintf("-AdminPassword=%s", config.WorldSettings.AdminPassword),
 			fmt.Sprintf("-port=%d", config.WorldSettings.PublicPort),
 			fmt.Sprintf("-players=%d", config.WorldSettings.ServerPlayerMaxNum),
 		}
 	} else {
-		err := mod.RemoveEmbeddedFiles(filepath.Join(config.GamePath, "Pal", "Binaries", "Win64"))
-		if err != nil {
-			log.Printf("Failed to remove files: %v", err)
-			return
-		}
-		//在这里加一个CheckAndWriteFiles的删除版本(因为只要文件存在就会自动注入)
 		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServer-Win64-Test-Cmd.exe")
 		args = []string{
 			"Pal",
