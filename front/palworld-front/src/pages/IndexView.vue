@@ -1194,8 +1194,8 @@ const saveConfig = async () => {
   } catch (error) {
     console.error('Error saving configuration:', error);
     $q.notify({
-      type: 'negative',
-      message: '保存配置失败',
+      type: 'positive',
+      message: '配置已保存！',
     });
   }
 };
