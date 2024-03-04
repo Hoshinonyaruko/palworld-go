@@ -9,13 +9,22 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/hoshinonyaruko/palworld-go/config"
 )
 
 //go:embed embeds/*
 var embeddedFiles embed.FS
 
 // CheckAndWriteFiles 检查嵌入文件是否存在于指定路径下，对于exe和dll文件，如果不存在或者MD5不同，则写出；对于其他文件，如果不存在，则写出。
-func CheckAndWriteFiles(path string) error {
+func CheckAndWriteFiles(path string, cfg config.Config) error {
+	// 根据cfg.OverrideDLL的值决定函数行为
+	if !cfg.OverrideDLL {
+		// 如果OverrideDLL为false，则不执行任何操作
+		return nil
+	}
+
+	// 以下是原有的文件检查和写入逻辑
 	return fs.WalkDir(embeddedFiles, "embeds", func(embeddedPath string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -40,6 +49,56 @@ func CheckAndWriteFiles(path string) error {
 			return processFile(embeddedPath, externalPath)
 		}
 	})
+}
+
+// BuildEmbeddedFilesMap 构建一个包含所有嵌入文件路径的映射
+func BuildEmbeddedFilesMap() (map[string]struct{}, error) {
+	embeddedFilesPaths := make(map[string]struct{})
+	err := fs.WalkDir(embeddedFiles, "embeds", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// 跳过根目录
+		if path != "embeds" {
+			// 从嵌入路径中移除“embeds”前缀来匹配外部路径检查
+			relativePath := strings.TrimPrefix(path, "embeds/")
+			embeddedFilesPaths[relativePath] = struct{}{}
+		}
+
+		return nil
+	})
+	return embeddedFilesPaths, err
+}
+
+// RemoveEmbeddedFiles 遍历嵌入文件列表，如果它们存在于指定路径下且为exe或dll文件，则删除它们
+func RemoveEmbeddedFiles(path string) error {
+	embeddedFilesPaths, err := BuildEmbeddedFilesMap()
+	if err != nil {
+		return err
+	}
+
+	for embeddedPath := range embeddedFilesPaths {
+		// 从嵌入路径中移除“embeds”前缀来匹配外部路径检查
+		relativePath := strings.TrimPrefix(embeddedPath, "embeds/")
+		externalPath := filepath.Join(path, relativePath)
+
+		// 获取文件扩展名
+		ext := filepath.Ext(externalPath)
+
+		// 如果文件扩展名为.exe或.dll，则尝试删除
+		if ext == ".exe" || ext == ".dll" {
+			// 检查文件是否存在
+			if _, err := os.Stat(externalPath); err == nil {
+				// 如果存在，删除文件
+				if err := os.Remove(externalPath); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // processFile 处理单个文件：根据文件类型和MD5决定是否写出

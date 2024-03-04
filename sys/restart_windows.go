@@ -4,6 +4,7 @@
 package sys
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -210,11 +211,8 @@ func RestartService(config config.Config) {
 
 	//发送机器人推送
 	bot.SendCommandMessages("run", config)
-	if config.CommunityServer {
-		exePath = filepath.Join(config.SteamPath, "Steam.exe")
-		args = []string{"-applaunch", "2394010"}
-	} else if config.UseDll {
-		err := mod.CheckAndWriteFiles(filepath.Join(config.GamePath, "Pal", "Binaries", "Win64"))
+	if config.UseDll {
+		err := mod.CheckAndWriteFiles(filepath.Join(config.GamePath, "Pal", "Binaries", "Win64"), config)
 		if err != nil {
 			log.Printf("Failed to write files: %v", err)
 			return
@@ -225,7 +223,20 @@ func RestartService(config config.Config) {
 			log.Printf("Failed to configure UE4 debug settings: %v", err)
 			return
 		}
-		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServerInject.exe")
+		//exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServerInject.exe")
+		//只要文件存在就会自动注入,无需PalServerInject.exe了
+
+	} else {
+		//在这里加一个CheckAndWriteFiles的删除版本(因为只要文件存在就会自动注入)
+		err := mod.RemoveEmbeddedFiles(filepath.Join(config.GamePath, "Pal", "Binaries", "Win64"))
+		if err != nil {
+			log.Printf("Failed to remove files: %v", err)
+			return
+		}
+	}
+	//自由选择有字版 无字版
+	if config.UsePalServerExe {
+		exePath = filepath.Join(config.GamePath, "PalServer.exe")
 		args = []string{
 			"-RconEnabled=True",
 			fmt.Sprintf("-AdminPassword=%s", config.WorldSettings.AdminPassword),
@@ -234,7 +245,6 @@ func RestartService(config config.Config) {
 		}
 	} else {
 		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServer-Win64-Test-Cmd.exe")
-		//exePath = "\"" + exePath + "\""
 		args = []string{
 			"Pal",
 			"-RconEnabled=True",
@@ -244,36 +254,93 @@ func RestartService(config config.Config) {
 		}
 	}
 
+	if config.CommunityServer {
+		// https://tech.palworldgame.com/getting-started/deploy-community-server
+		// 启动社区服务器可以直接使用PalSerer.exe 启动
+		args = append(args, "-publiclobby")
+	}
+
+	// 如果RCON启用，则添加RCON参数
+	if config.WorldSettings.RconEnabled {
+		args = append(args, "-rcon")
+	}
+
 	args = append(args, config.ServerOptions...) // 添加GameWorldSettings参数
 
 	// 执行启动命令
 	log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))
-	if config.UseDll && runtime.GOOS == "windows" {
-		log.Printf("use bat")
-		RunViaBatch(config, exePath, args)
-		log.Printf("use bat success")
-	} else {
-		cmd := exec.Command(exePath, args...)
-		cmd.Dir = config.GamePath // 设置工作目录为游戏路径
-		if runtime.GOOS == "windows" {
-			// 仅在Windows平台上设置
-			cmd.SysProcAttr = &syscall.SysProcAttr{
-				CreationFlags: 16,
-			}
+	// if config.UseDll && runtime.GOOS == "windows" {
+	// 	log.Printf("use bat")
+	// 	RunViaBatch(config, exePath, args)
+	// 	log.Printf("use bat success")
+	// } else {
+	// 	//old
+	// }
+	cmd := exec.Command(exePath, args...)
+	cmd.Dir = config.GamePath // 设置工作目录为游戏路径
+	if runtime.GOOS == "windows" {
+		// 仅在Windows平台上设置
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			CreationFlags: 16,
 		}
-
-		// 启动进程
-		if err := cmd.Start(); err != nil {
-			log.Printf("Failed to restart game server: %v", err)
-		} else {
-			log.Printf("Game server restarted successfully")
-		}
-
-		// 获取并打印 PID
-		log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
-		status.SetGlobalPid(cmd.Process.Pid)
 	}
 
+	// 启动进程
+	if err := cmd.Start(); err != nil {
+		log.Printf("Failed to restart game server: %v", err)
+	} else {
+		log.Printf("Game server restarted successfully")
+	}
+
+	// 获取并打印 PID
+	log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
+	//使用PalServer.exe启动获取到的pid不一致
+	if config.UsePalServerExe {
+		// PowerShell脚本模板
+		psScript := `
+					$processName = "%s"
+					$configGamePath = "%s"
+					$matchingProcesses = Get-WmiObject Win32_Process | Where-Object { $_.Name -eq $processName }
+					foreach ($process in $matchingProcesses) {
+						$commandLine = $process.CommandLine
+						if ($commandLine -and $commandLine.Contains($configGamePath)) {
+							Write-Output $process.ProcessId
+							break
+						}
+					}
+					`
+		// 使用config.GamePath和processName填充PowerShell脚本模板
+		psScriptFormatted := fmt.Sprintf(psScript, "PalServer-Win64-Test-Cmd.exe", config.GamePath)
+
+		// 调用PowerShell执行脚本
+		cmd := exec.Command("powershell", "-Command", psScriptFormatted)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		err := cmd.Run()
+		if err != nil {
+			fmt.Println("Failed to execute PowerShell script:", err)
+			return
+		}
+
+		output := strings.TrimSpace(out.String())
+		if output == "" {
+			fmt.Println("No matching process found")
+			return
+		}
+
+		fmt.Println("Matching Real Server PID:", output)
+
+		// 将output字符串转换为int
+		pid, err := strconv.Atoi(output)
+		if err != nil {
+			fmt.Println("Error converting PID from string to int:", err)
+			return
+		}
+
+		status.SetGlobalPid(pid)
+	} else {
+		status.SetGlobalPid(cmd.Process.Pid)
+	}
 }
 
 // ConfigureUE4DebugSettings 根据config.EnableUe4Debug的值配置UE4SS-settings.ini文件
@@ -289,8 +356,8 @@ func ConfigureUE4DebugSettings(gamePath string, enableDebug bool) error {
 	if enableDebug {
 		debugVal = 1
 	}
-
-	cfg.Section("Debug").Key("ConsoleEnabled").SetValue(fmt.Sprintf("%d", 1)) //开启console输出
+	//踩坑,palguard这里需要0,代表关闭输出,但是却有输出,可能是什么冲突吧.
+	cfg.Section("Debug").Key("ConsoleEnabled").SetValue(fmt.Sprintf("%d", 0)) //开启console输出
 	cfg.Section("Debug").Key("GuiConsoleEnabled").SetValue(fmt.Sprintf("%d", debugVal))
 	cfg.Section("Debug").Key("GuiConsoleVisible").SetValue(fmt.Sprintf("%d", debugVal))
 

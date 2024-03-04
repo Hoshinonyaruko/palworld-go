@@ -20,7 +20,7 @@ var (
 )
 
 type ExecuteCloser interface {
-	Execute(command string) (string, error)
+	Execute(command string, usedll bool) (string, error)
 	Close() error
 }
 
@@ -50,9 +50,9 @@ func NewExecutor(address, password string, skipErrors bool) (*Executor, error) {
 	return &Executor{client: client, skipErrors: skipErrors}, nil
 }
 
-func (e *Executor) Execute(command string) (string, error) {
+func (e *Executor) Execute(command string, usedll bool) (string, error) {
 
-	response, err := e.client.Execute(command)
+	response, err := e.client.Execute(command, usedll)
 
 	if response != "" {
 		response = strings.TrimSpace(response)

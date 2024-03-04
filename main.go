@@ -29,6 +29,7 @@ import (
 
 	"github.com/hoshinonyaruko/palworld-go/bot"
 	"github.com/hoshinonyaruko/palworld-go/config"
+	"github.com/hoshinonyaruko/palworld-go/status"
 	"github.com/hoshinonyaruko/palworld-go/sys"
 	"github.com/hoshinonyaruko/palworld-go/tool"
 	"github.com/hoshinonyaruko/palworld-go/webui"
@@ -115,6 +116,8 @@ func main() {
 			fmt.Println("PalServer.exe exists in the current directory.")
 		}
 	}
+	//还原状态
+	status.SetManualServerShutdown(false)
 
 	// 设置监控和自动重启
 	supervisor := NewSupervisor(jsonconfig)

@@ -90,23 +90,42 @@ func RestartService(config config.Config) {
 		fmt.Sprintf("-players=%d", config.WorldSettings.ServerPlayerMaxNum),
 	}
 
-	args = append(args, config.ServerOptions...) // 添加GameWorldSettings参数
-
-	// 执行启动命令
-	log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))
-
-	cmd := exec.Command(exePath, args...)
-	cmd.Dir = config.GamePath // 设置工作目录为游戏路径
-
-	// 启动进程
-	if err := cmd.Start(); err != nil {
-		log.Printf("Failed to restart game server: %v", err)
-	} else {
-		log.Printf("Game server restarted successfully")
+	if config.CommunityServer {
+		args = append(args, "-publiclobby")
 	}
 
-	// 获取并打印 PID
-	log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
-	status.SetGlobalPid(cmd.Process.Pid)
+	// 如果RCON启用，则添加RCON参数
+	if config.WorldSettings.RconEnabled {
+		args = append(args, "-rcon")
+	}
+	// 添加GameWorldSettings参数
+	args = append(args, config.ServerOptions...)
+
+	if config.GameService && config.GameServiceName != "" {
+		cmd := exec.Command("sudo", "systemctl", "restart", config.GameServiceName)
+		// 启动进程
+		if err := cmd.Start(); err != nil {
+			log.Printf("Failed to restart game server: %v", err)
+		} else {
+			log.Printf("Game server restarted successfully")
+		}
+	} else {
+		// 执行启动命令
+		log.Printf("启动命令: %s %s", exePath, strings.Join(args, " "))
+
+		cmd := exec.Command(exePath, args...)
+		cmd.Dir = config.GamePath // 设置工作目录为游戏路径
+
+		// 启动进程
+		if err := cmd.Start(); err != nil {
+			log.Printf("Failed to restart game server: %v", err)
+		} else {
+			log.Printf("Game server restarted successfully")
+		}
+
+		// 获取并打印 PID
+		log.Printf("Game server started successfully with PID %d", cmd.Process.Pid)
+		status.SetGlobalPid(cmd.Process.Pid)
+	}
 
 }

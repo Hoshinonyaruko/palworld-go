@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -23,7 +22,7 @@ func Info(config config.Config) (map[string]string, error) {
 	}
 	defer exec.Close()
 
-	response, err := exec.Execute("Info")
+	response, err := exec.Execute("Info", config.UseDll)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +49,7 @@ func ShowPlayers(config config.Config) ([]map[string]string, error) {
 	}
 	defer exec.Close()
 
-	response, err := exec.Execute("ShowPlayers")
+	response, err := exec.Execute("ShowPlayers", config.UseDll)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +91,7 @@ func KickPlayer(config config.Config, steamID string) error {
 	}
 	defer exec.Close()
 
-	response, err := exec.Execute("KickPlayer " + steamID)
+	response, err := exec.Execute("KickPlayer "+steamID, config.UseDll)
 	if err != nil {
 		return err
 	}
@@ -110,7 +109,7 @@ func BanPlayer(config config.Config, steamID string) error {
 	}
 	defer exec.Close()
 
-	response, err := exec.Execute("BanPlayer " + steamID)
+	response, err := exec.Execute("BanPlayer "+steamID, config.UseDll)
 	if err != nil {
 		return err
 	}
@@ -121,39 +120,21 @@ func BanPlayer(config config.Config, steamID string) error {
 }
 
 func Broadcast(config config.Config, message string) error {
-	// 如果config.Usedll为true，则使用HTTP方式发送消息
-	if config.UseDll {
-		base := "http://127.0.0.1:" + config.DllPort + "/rcon?text="
-		messageText := url.QueryEscape("broadcast " + message)
-		fullURL := base + messageText
-
-		// 发送HTTP请求
-		resp, err := http.Get(fullURL)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		// 这里可以添加对resp的处理逻辑
-		log.Println("Broadcast message sent successfully via HTTP")
-		return nil
-	} else {
-		// 原始方法发送
-		address := config.Address + ":" + strconv.Itoa(config.WorldSettings.RconPort)
-		exec, err := NewExecutor(address, config.WorldSettings.AdminPassword, true)
-		if err != nil {
-			return err
-		}
-		defer exec.Close()
-
-		response, err := exec.Execute("Broadcast " + strings.ReplaceAll(message, " ", "_"))
-		if err != nil {
-			return err
-		}
-		if response != fmt.Sprintf("Broadcasted: %s", message) {
-			return errors.New(response)
-		}
-		return nil
+	address := config.Address + ":" + strconv.Itoa(config.WorldSettings.RconPort)
+	exec, err := NewExecutor(address, config.WorldSettings.AdminPassword, true)
+	if err != nil {
+		return err
 	}
+	defer exec.Close()
+
+	response, err := exec.Execute("broadcast "+strings.ReplaceAll(message, " ", "_"), config.UseDll)
+	if err != nil {
+		return err
+	}
+	if response != fmt.Sprintf("Broadcasted: %s", message) {
+		return errors.New(response)
+	}
+	return nil
 }
 
 func Shutdown(config config.Config, seconds string, message string) error {
@@ -166,7 +147,7 @@ func Shutdown(config config.Config, seconds string, message string) error {
 
 	message = strings.ReplaceAll(message, " ", "_")
 
-	response, err := exec.Execute(fmt.Sprintf("Shutdown %s %s", seconds, message))
+	response, err := exec.Execute(fmt.Sprintf("Shutdown %s %s", seconds, message), config.UseDll)
 	if err != nil {
 		return err
 	}
@@ -185,7 +166,7 @@ func DoExit(config config.Config) error {
 	}
 	defer exec.Close()
 
-	response, err := exec.Execute("DoExit")
+	response, err := exec.Execute("DoExit", config.UseDll)
 	if err != nil {
 		return err
 	}
