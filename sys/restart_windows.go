@@ -244,7 +244,7 @@ func RestartService(config config.Config) {
 			fmt.Sprintf("-players=%d", config.WorldSettings.ServerPlayerMaxNum),
 		}
 	} else {
-		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServer-Win64-Test-Cmd.exe")
+		exePath = filepath.Join(config.GamePath, "Pal", "Binaries", "Win64", "PalServer-Win64-Shipping-Cmd.exe")
 		args = []string{
 			"Pal",
 			"-RconEnabled=True",
@@ -310,7 +310,7 @@ func RestartService(config config.Config) {
 					}
 					`
 		// 使用config.GamePath和processName填充PowerShell脚本模板
-		psScriptFormatted := fmt.Sprintf(psScript, "PalServer-Win64-Test-Cmd.exe", config.GamePath)
+		psScriptFormatted := fmt.Sprintf(psScript, "PalServer-Win64-Shipping-Cmd.exe", config.GamePath)
 
 		// 调用PowerShell执行脚本
 		cmd := exec.Command("powershell", "-Command", psScriptFormatted)
