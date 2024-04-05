@@ -50,7 +50,7 @@ func (task *MemoryCheckTask) checkMemory() {
 	if runtime.GOOS == "windows" {
 		cmd = exec.Command("wmic", "OS", "get", "FreePhysicalMemory", "/Value")
 	} else {
-		cmd = exec.Command("sh", "-c", "free | grep Mem | awk '{print $3/$2 * 100.0}'")
+		cmd = exec.Command("sh", "-c", "free | awk 'NR==2{print $3/$2 * 100.0}'")
 	}
 
 	var out bytes.Buffer
