@@ -71,9 +71,24 @@ jobs:
         CGO_ENABLED: 0
       run: |
         if [ "$GOOS" = "windows" ]; then
-          go build -o output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}.exe
+          go build -ldflags="-s -w" -o output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}.exe
         else
-          go build -o output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}
+          go build -ldflags="-s -w" -o output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}
+        fi
+
+    - name: Compress executable files with UPX (except for palworld-go-android-arm64)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y upx
+        if [[ "${{ matrix.os }}" == *"windows"* ]]; then
+          FILENAME="output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}.exe"
+        else
+          FILENAME="output/palworld-go-${{ matrix.os }}-${{ matrix.goarch }}"
+        fi
+        if [[ "${{ matrix.os }}" == "android" && "${{ matrix.goarch }}" == "arm64" ]]; then
+          echo "Skipping UPX compression for $FILENAME"
+        else
+          upx --best --lzma "$FILENAME"
         fi
 
     - name: Upload artifacts
