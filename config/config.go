@@ -430,6 +430,10 @@ func AutoConfigurePaths(config *Config) error {
 		status.SetsuccessReadGameWorldSettings(false)
 	} else {
 		config.WorldSettings = gameworldsettings
+		if config.WorldSettings.AdminPassword == "" {
+			config.WorldSettings.AdminPassword = "12345"
+			log.Println("设置默认登入密码为12345,为了你的服务器安全,请一定在管理面板的rcon密码处修改为其他密码.")
+		}
 		log.Println("从游戏parworldsetting.ini解析配置成功.")
 		log.Printf("从游戏parworldsetting.ini解析配置成功.%v", config.WorldSettings)
 		status.SetsuccessReadGameWorldSettings(true)
